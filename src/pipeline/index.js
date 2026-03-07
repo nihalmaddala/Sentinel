@@ -11,6 +11,7 @@ const { adjudicate }  = require('./5-adjudicate');
 const { enforce }     = require('./6-enforce');
 const { saveVerdict, saveIssue } = require('../services/supabase');
 const { feedbackLoop }           = require('./neo4j-feedback');
+const { scanForInjection }       = require('../attacker/injection-scanner');
 
 /**
  * Run the full 6-stage Argus autonomic compliance pipeline.
@@ -34,6 +35,30 @@ async function runPipeline(payload) {
   try {
     // ── Stage 1: Intercept ──────────────────────────────────────────────────
     intercept(ctx, payload);
+
+    // ── Security: Prompt Injection Scan ─────────────────────────────────────
+    // Runs before any LLM stage — scans the diff for injection attempts
+    // and live-probes GPT-4o to confirm if the attack would succeed.
+    await scanForInjection(ctx);
+
+    // If injection is CRITICAL (defense bypassed), force-block immediately
+    if (ctx.injectionReport?.status === 'CRITICAL') {
+      console.log('[pipeline] 🚨 CRITICAL injection detected — forcing BLOCK verdict');
+      ctx.verdict = {
+        decision:              'BLOCK',
+        overallScore:          1.0,
+        legalRisk:             1.0,
+        architecturalExposure: 1.0,
+        confidence:            1.0,
+        reasoning:             'SECURITY VIOLATION: Prompt injection attack detected and confirmed. This PR contains adversarial inputs designed to manipulate AI-based compliance analysis.',
+        citations:             [],
+        recommendations:       ['Remove all prompt injection payloads from code comments and strings.', 'Review the PR for malicious intent before re-submitting.'],
+        jurisdictionBreakdown: [],
+        _source:               'injection-scanner',
+      };
+      enforce(ctx);
+      return ctx;
+    }
 
     // ── Feature Context Enrichment ──────────────────────────────────────────
     await buildFeatureContext(ctx);

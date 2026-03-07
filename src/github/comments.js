@@ -1,6 +1,7 @@
 'use strict';
 
 const GITHUB_API = 'https://api.github.com';
+const { renderInjectionReport } = require('../attacker/injection-report');
 
 const DECISION_BADGE = {
   BLOCK:     'BLOCKED',
@@ -411,8 +412,11 @@ async function postAuditReport(token, owner, repo, prNumber, ctx) {
     '',
     ...renderLeadership(rp.leadership),
     '',
+    // ── Injection Scan Report ──────────────────────────────────────────────
+    renderInjectionReport(ctx?.injectionReport),
+    '',
     '---',
-    '*[Argus](https://github.com/apps/argus-compliance) · Autonomous Compliance Gatekeeper*',
+    '*[Argus](https://github.com/apps/argus-compliance) · Autonomous Compliance Gatekeeper · Security Scanner*',
   ];
 
   const body = sections.join('\n');
