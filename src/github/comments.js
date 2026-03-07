@@ -369,54 +369,19 @@ function renderTrace(graphEvidence) {
  * @param {object} ctx         Full pipeline context object
  */
 async function postAuditReport(token, owner, repo, prNumber, ctx) {
-  const { verdict, intent, legalFindings, graphEvidence } = ctx;
-  const rp = verdict.rolePacks || {};
+  const { verdict } = ctx;
 
-  // Build the structured legal findings for the legal section
-  const structuredCitations = (legalFindings || []).flatMap((f) =>
-    (f.citations || []).slice(0, 3).map((c, i) => {
-      if (typeof c === 'object') return { ...c, jurisdiction: f.jurisdiction };
-      const isAuth = /\[AUTHORITATIVE/i.test(c);
-      return {
-        id: `cit_${f.jurisdiction.toLowerCase().replace(/[^a-z]/g, '_')}_${i + 1}`,
-        jurisdiction: f.jurisdiction,
-        source_quality: isAuth ? 'AUTHORITATIVE' : 'REFERENCE',
-        snippet: c.replace(/^\[[^\]]+\]\s*/i, '').replace(/https?:\/\/[^\s]+/g, '').trim().slice(0, 160),
-        url: (c.match(/https?:\/\/[^\s,)]+/) || [])[0] || null,
-      };
-    })
-  );
-
-  // Group structured citations by jurisdiction so renderLegal can read f.jurisdiction correctly.
-  const citationsByJurisdiction = structuredCitations.length > 0
-    ? Object.values(
-        structuredCitations.reduce((acc, c) => {
-          const j = c.jurisdiction;
-          if (!acc[j]) acc[j] = { jurisdiction: j, citations: [] };
-          acc[j].citations.push(c);
-          return acc;
-        }, {})
-      )
-    : legalFindings;
+  const DECISION_BADGE_MAP = { BLOCK: '🚫 BLOCKED', MERGE: '✅ APPROVED', ESC_HUMAN: '⚠️ NEEDS REVIEW' };
+  const badge = DECISION_BADGE_MAP[verdict?.decision] || verdict?.decision || 'UNKNOWN';
 
   const sections = [
-    ...renderPRInfo(verdict, intent, graphEvidence),
+    `## Argus Security Agent — ${badge}`,
     '',
-    ...renderTrace(graphEvidence),
-    '',
-    ...renderEngineering(rp.engineering, verdict.violatingCode),
-    '',
-    ...renderCompliance(rp.compliance),
-    '',
-    ...renderLegal(rp.legal, citationsByJurisdiction),
-    '',
-    ...renderLeadership(rp.leadership),
-    '',
-    // ── Injection Scan Report ──────────────────────────────────────────────
+    // ── Injection Scan Report (primary output) ─────────────────────────────
     renderInjectionReport(ctx?.injectionReport),
     '',
     '---',
-    '*[Argus](https://github.com/apps/argus-compliance) · Autonomous Compliance Gatekeeper · Security Scanner*',
+    '*[Argus](https://github.com/apps/argus-security) · Prompt Injection Shield · AI Security Scanner*',
   ];
 
   const body = sections.join('\n');

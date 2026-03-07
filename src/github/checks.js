@@ -31,14 +31,13 @@ async function createPendingCheck(token, owner, repo, sha) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        name: 'Argus Compliance Gate',
+        name: 'Argus Security Scan',
         head_sha: sha,
         status: 'in_progress',
         started_at: new Date().toISOString(),
         output: {
-          title: 'Argus is analysing this PR…',
-          summary:
-            'Autonomous compliance analysis in progress. Checking against EU AI Act, CCPA 2026, and infrastructure lineage graph.',
+          title: 'Argus is scanning for prompt injection…',
+          summary: 'Scanning diff for adversarial inputs. Running two-layer injection detection: pattern scan + live GPT-4o probe.',
         },
       }),
     }
@@ -69,15 +68,13 @@ async function updateCheck(token, owner, repo, checkRunId, verdict, annotations 
   const confPct    = verdict.confidence !== undefined ? `${((verdict.confidence || 0) * 100).toFixed(0)}%` : 'N/A';
 
   // Use the structured prSummary if available, fall back to legacy reasoning
-  const headline  = verdict.prSummary?.headline  || `Argus Verdict: ${verdict.decision}`;
+  const headline  = verdict.prSummary?.headline  || `Argus Security Scan: ${verdict.decision}`;
   const reasoning = verdict.prSummary?.reasoning || verdict.reasoning || '';
 
   const summaryLines = [
     `**Decision: ${verdict.decision}**`,
-    `**Overall Risk:** ${((verdict.overallScore || 0) * 100).toFixed(0)}%  |  **Legal Risk:** ${((verdict.legalRisk || 0) * 100).toFixed(0)}%  |  **Architectural Exposure:** ${((verdict.architecturalExposure || 0) * 100).toFixed(0)}%  |  **Confidence:** ${confPct}`,
     '',
     reasoning,
-    verdict.confidenceRationale ? `_${verdict.confidenceRationale}_` : '',
   ].filter(Boolean);
 
   if (verdict.recommendations?.length > 0) {
