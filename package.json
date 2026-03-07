@@ -1,0 +1,39 @@
+{
+  "name": "argus",
+  "version": "1.0.0",
+  "description": "Autonomous Multi-Regime Compliance Gatekeeper for AI Systems",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "npx concurrently \"node src/index.js\" \"npx smee-client -u https://smee.io/iX6cw8t8G1XcfM -t http://localhost:3000/api/webhook\"",
+    "dev:server": "node src/index.js",
+    "seed": "node neo4j/seed.js",
+    "test:webhook": "node test/test-webhook.js",
+    "llm:smoke": "node scripts/llmSmoke.js"
+  },
+  "dependencies": {
+    "@chroma-core/default-embed": "^0.1.9",
+    "@octokit/webhooks": "^13.4.0",
+    "@supabase/supabase-js": "^2.98.0",
+    "@tailwindcss/vite": "^4.2.1",
+    "@tavily/core": "^0.7.2",
+    "chromadb": "^3.3.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.575.0",
+    "neo4j-driver": "^5.27.0",
+    "octokit": "^4.1.0",
+    "openai": "^4.77.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@rollup/rollup-darwin-arm64": "^4.59.0",
+    "concurrently": "^9.1.0",
+    "rollup": "^4.59.0",
+    "smee-client": "^2.0.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
