@@ -65,11 +65,15 @@ async function createPendingCheck(token, owner, repo, sha) {
  */
 async function updateCheck(token, owner, repo, checkRunId, verdict, annotations = []) {
   const conclusion = CONCLUSION_MAP[verdict.decision] || 'neutral';
-  const confPct    = verdict.confidence !== undefined ? `${((verdict.confidence || 0) * 100).toFixed(0)}%` : 'N/A';
 
-  // Use the structured prSummary if available, fall back to legacy reasoning
-  const headline  = verdict.prSummary?.headline  || `Sentinel Security Scan: ${verdict.decision}`;
-  const reasoning = verdict.prSummary?.reasoning || verdict.reasoning || '';
+  // If this block came from the injection scanner, surface that clearly
+  const fromScanner = verdict._source === 'injection-scanner';
+  const headline = fromScanner
+    ? `Sentinel Security Scan: Prompt injection ${verdict.decision}`
+    : `Sentinel Security Scan: ${verdict.decision}`;
+  const reasoning = fromScanner
+    ? verdict.reasoning
+    : (verdict.prSummary?.reasoning || verdict.reasoning || '');
 
   const summaryLines = [
     `**Decision: ${verdict.decision}**`,
@@ -320,14 +324,9 @@ async function buildAnnotations(token, owner, repo, prNumber, verdict, prFiles) 
       .filter((j) => j.decision === 'BLOCK' || j.decision === 'ESC_HUMAN')
       .map((j) => `• [${j.jurisdiction}] ${j.decision}: ${j.reason}`);
 
-    const firstCit = verdict.citations?.[0];
-    const citText  = firstCit
-      ? `\n\nPattern: ${typeof firstCit === 'string' ? firstCit.slice(0, 200) : (firstCit.law || '') + (firstCit.excerpt ? ` — "${firstCit.excerpt}"` : '')}`
-      : '';
-
-    const baseMessage = jurisdictionLines.length > 0
-      ? jurisdictionLines.join('\n') + citText
-      : (verdict.prSummary?.reasoning || verdict.reasoning || 'Injection pattern detected.') + citText;
+    const baseMessage = verdict._source === 'injection-scanner'
+      ? (verdict.reasoning || 'Prompt injection detected.')
+      : (verdict.prSummary?.reasoning || verdict.reasoning || 'PR blocked by Sentinel.');
 
     for (const file of files.slice(0, 10)) {
       if (file.status === 'removed') continue;
