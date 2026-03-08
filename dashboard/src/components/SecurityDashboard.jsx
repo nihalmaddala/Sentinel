@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
-  ShieldCheck, ShieldX, GitPullRequest, Clock,
-  ThumbsUp, ThumbsDown, Activity, User
+  ShieldCheck, GitPullRequest, Activity, User
 } from 'lucide-react';
 
 // ── Static demo data ──────────────────────────────────────────────────────────
@@ -124,36 +123,30 @@ function PRRow({ scan, onSelect, selected }) {
   return (
     <button
       onClick={() => onSelect(scan)}
-      className={`w-full text-left px-4 py-4 border-b border-slate-100 transition-colors ${
-        selected ? 'bg-slate-50' : 'hover:bg-slate-50/60'
+      className={`w-full text-left px-4 py-3.5 border-b border-zinc-800 transition-colors ${
+        selected ? 'bg-zinc-800' : 'hover:bg-zinc-900'
       }`}
     >
       <div className="flex items-center justify-between gap-3">
-        {/* Name + title */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
-            isClean ? 'bg-emerald-100' : 'bg-red-100'
-          }`}>
-            {isClean
-              ? <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              : <ShieldX className="w-4 h-4 text-red-600" />
-            }
-          </div>
+          <div className={`flex-shrink-0 w-1 h-8 rounded-full ${
+            isClean ? 'bg-sky-400' : 'bg-red-500'
+          }`} />
           <div className="min-w-0">
-            <span className="text-xs font-semibold text-slate-700">@{scan.author}</span>
-            <p className="text-sm text-slate-600 truncate mt-0.5">{cleanTitle(scan.prTitle)}</p>
+            <span className="text-[11px] font-mono text-zinc-400">@{scan.author}</span>
+            <p className="text-sm text-zinc-100 truncate leading-snug">{cleanTitle(scan.prTitle)}</p>
           </div>
         </div>
-        {/* Status badge */}
-        <span className={`flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full ${
-          isClean ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+        <span className={`flex-shrink-0 text-[10px] font-semibold tracking-widest uppercase px-2 py-0.5 border ${
+          isClean
+            ? 'border-sky-400/40 text-sky-400'
+            : 'border-red-500/40 text-red-400'
         }`}>
-          {isClean ? 'Can Merge' : 'Blocked'}
+          {isClean ? 'Clean' : 'Blocked'}
         </span>
       </div>
-      {/* Summary preview */}
       {scan.summary && (
-        <p className="mt-2 text-xs text-slate-400 line-clamp-2 pl-9">{scan.summary}</p>
+        <p className="mt-1.5 text-[11px] text-zinc-500 line-clamp-1 pl-3.5">{scan.summary}</p>
       )}
     </button>
   );
@@ -167,69 +160,59 @@ function PRDetail({ scan }) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className={`rounded-xl border p-5 ${isClean ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+      <div className={`border-l-2 pl-4 py-1 ${
+        isClean ? 'border-sky-400' : 'border-red-500'
+      }`}>
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-white/70">
-              {isClean
-                ? <ShieldCheck className="w-6 h-6 text-emerald-600" />
-                : <ShieldX className="w-6 h-6 text-red-600" />
-              }
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="text-base font-semibold text-white">{cleanTitle(scan.prTitle)}</span>
+              <span className={`text-[10px] font-semibold tracking-widest uppercase px-2 py-0.5 border ${
+                isClean ? 'border-sky-400/40 text-sky-400' : 'border-red-500/40 text-red-400'
+              }`}>
+                {isClean ? 'Can Merge' : 'Blocked'}
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-base font-bold text-slate-900">@{scan.author}</span>
-                <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                  isClean ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'
-                }`}>
-                  {isClean ? 'Can Merge' : 'Blocked'}
-                </span>
-              </div>
-              <p className="text-sm text-slate-600 mt-0.5">{cleanTitle(scan.prTitle)}</p>
-            </div>
+            <p className="text-[11px] font-mono text-zinc-500 mt-1">@{scan.author}</p>
           </div>
-          <div className="text-right text-xs text-slate-400 flex-shrink-0 space-y-1">
-            <div className="flex items-center gap-1 justify-end">
-              <GitPullRequest className="w-3 h-3" />
-              <span>#{scan.prNumber}</span>
-            </div>
-            <div className="flex items-center gap-1 justify-end">
-              <Clock className="w-3 h-3" />
-              <span>{timeAgo(scan.scannedAt)}</span>
-            </div>
+          <div className="text-right text-[11px] text-zinc-600 flex-shrink-0 font-mono space-y-0.5">
+            <div>#{scan.prNumber}</div>
+            <div>{timeAgo(scan.scannedAt)}</div>
           </div>
         </div>
       </div>
 
       {/* Summary */}
       {scan.summary && (
-        <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <p className="text-sm text-slate-700 leading-relaxed">{scan.summary}</p>
+        <div className="border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-sm text-zinc-300 leading-relaxed">{scan.summary}</p>
         </div>
       )}
 
       {/* Pattern matches */}
       {scan.patternMatches?.length > 0 && (
-        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100">
-            <span className="text-sm font-semibold text-slate-700">
-              Injection Patterns Detected ({scan.patternMatches.length})
+        <div className="border border-zinc-800 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-zinc-800 bg-zinc-900">
+            <span className="text-[11px] font-semibold tracking-widest uppercase text-zinc-400">
+              Patterns Detected · {scan.patternMatches.length}
             </span>
           </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-zinc-800">
             {scan.patternMatches.map((m, i) => (
-              <div key={i} className="px-4 py-2.5">
+              <div key={i} className="px-4 py-2.5 bg-zinc-950">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                    m.severity === 'CRITICAL' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                  <span className={`text-[10px] font-semibold tracking-widest uppercase px-1.5 py-0.5 ${
+                    m.severity === 'CRITICAL'
+                      ? 'bg-red-500/10 text-red-400 border border-red-500/30'
+                      : 'bg-amber-400/10 text-amber-400 border border-amber-400/30'
                   }`}>
                     {m.severity}
                   </span>
-                  {m.lineNumber && <span className="text-xs text-slate-500">Line {m.lineNumber}</span>}
-                  <span className="text-xs text-slate-700">{m.description}</span>
+                  {m.lineNumber && <span className="text-[11px] text-zinc-600 font-mono">:{m.lineNumber}</span>}
+                  <span className="text-[11px] text-zinc-400">{m.description}</span>
                 </div>
                 {m.lineContent && (
-                  <code className="mt-1.5 block text-xs text-slate-500 bg-slate-50 rounded px-2 py-1 font-mono truncate">
+                  <code className="mt-1.5 block text-[11px] text-zinc-600 bg-black px-2 py-1 font-mono truncate">
                     {m.lineContent}
                   </code>
                 )}
@@ -245,41 +228,38 @@ function PRDetail({ scan }) {
 // ── Author Reputation Row ─────────────────────────────────────────────────────
 
 function AuthorRow({ stat }) {
-  const pct      = stat.total > 0 ? Math.round((stat.blocked / stat.total) * 100) : 0;
-  const isBad    = pct >= 50;
-  const isClean  = pct === 0;
+  const pct     = stat.total > 0 ? Math.round((stat.blocked / stat.total) * 100) : 0;
+  const isBad   = pct >= 50;
+  const isClean = pct === 0;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-0">
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-        isClean ? 'bg-emerald-100 text-emerald-700' : isBad ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0">
+      <div className={`w-7 h-7 flex items-center justify-center flex-shrink-0 text-[11px] font-mono font-semibold border ${
+        isClean ? 'border-sky-400/40 text-sky-400' : isBad ? 'border-red-500/40 text-red-400' : 'border-zinc-600 text-zinc-400'
       }`}>
         {stat.author[0].toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-slate-800">@{stat.author}</span>
-          <span className={`text-xs font-bold ${isClean ? 'text-emerald-600' : isBad ? 'text-red-600' : 'text-amber-600'}`}>
+          <span className="text-sm font-mono text-zinc-200">@{stat.author}</span>
+          <span className={`text-[11px] font-mono ${
+            isClean ? 'text-sky-400' : isBad ? 'text-red-400' : 'text-zinc-500'
+          }`}>
             {pct}% blocked
           </span>
         </div>
         <div className="mt-1.5 flex items-center gap-2">
-          {/* Progress bar */}
-          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="flex-1 h-px bg-zinc-800">
             <div
-              className={`h-full rounded-full ${isClean ? 'bg-emerald-400' : isBad ? 'bg-red-400' : 'bg-amber-400'}`}
+              className={`h-px ${
+                isClean ? 'bg-sky-400' : isBad ? 'bg-red-500' : 'bg-zinc-500'
+              }`}
               style={{ width: `${pct}%` }}
             />
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 flex-shrink-0">
-            <span className="flex items-center gap-0.5">
-              <ThumbsUp className="w-3 h-3 text-emerald-500" />
-              {stat.canMerge ?? stat.merged ?? 0}
-            </span>
-            <span className="flex items-center gap-0.5">
-              <ThumbsDown className="w-3 h-3 text-red-500" />
-              {stat.blocked}
-            </span>
+          <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-600 flex-shrink-0">
+            <span>{stat.canMerge ?? stat.merged ?? 0} clean</span>
+            <span>{stat.blocked} blocked</span>
           </div>
         </div>
       </div>
@@ -304,71 +284,72 @@ export default function SecurityDashboard({ scans: liveScans, contributorStats: 
   const authorStats = liveContributorStats?.length ? liveContributorStats : buildAuthorStats(scans);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">PR Security Feed</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Every pull request scanned for prompt injection — full history with contributor reputation tracking.
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
+      {/* Page header */}
+      <div className="border-b border-zinc-800 pb-6">
+        <h2 className="text-xl font-semibold tracking-tight text-white">PR Security Feed</h2>
+        <p className="text-xs text-zinc-500 mt-1 font-mono">
+          Every pull request scanned for prompt injection attacks.
         </p>
       </div>
 
-      {/* Demo data banner */}
+      {/* Demo banner */}
       {usingDemo && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
-          <span className="font-semibold">Demo mode</span> — showing sample data. Connect Supabase and run a PR to see real scans.
+        <div className="border border-zinc-700 px-4 py-3 text-xs text-zinc-400 font-mono">
+          <span className="text-sky-400">demo mode</span> — showing sample data. trigger a real PR to populate this feed.
         </div>
       )}
 
-      {/* Empty state when connected but no scans yet */}
+      {/* Empty state */}
       {connected && scans.length === 0 && (
-        <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
-          <ShieldCheck className="w-12 h-12 text-slate-300" />
-          <p className="text-base font-medium text-slate-500">No scans yet</p>
-          <p className="text-sm">Open a pull request in your monitored repo to trigger the first scan.</p>
+        <div className="flex flex-col items-center justify-center h-64 text-zinc-700 gap-3">
+          <ShieldCheck className="w-8 h-8" strokeWidth={1} />
+          <p className="text-sm font-mono">No scans yet.</p>
+          <p className="text-xs text-zinc-600">Open a pull request in your monitored repo.</p>
         </div>
       )}
 
-      {/* Only render feed content when there are scans to show */}
       {scans.length > 0 && (<>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-slate-200">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total PRs</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{totalScans}</p>
-          <p className="text-xs text-slate-400 mt-0.5">scanned all time</p>
+      {/* KPI row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-zinc-800">
+        <div className="bg-zinc-950 p-5">
+          <p className="text-[10px] font-semibold tracking-widest uppercase text-zinc-500">Total PRs</p>
+          <p className="text-4xl font-semibold text-white mt-2 tabular-nums">{totalScans}</p>
+          <p className="text-[11px] text-zinc-600 mt-1">scanned</p>
         </div>
-        <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
-          <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Can Merge</p>
-          <p className="text-3xl font-bold text-emerald-700 mt-1">{merged}</p>
-          <p className="text-xs text-emerald-500 mt-0.5">clean, no threats found</p>
+        <div className="bg-zinc-950 p-5">
+          <p className="text-[10px] font-semibold tracking-widest uppercase text-sky-500">Can Merge</p>
+          <p className="text-4xl font-semibold text-sky-400 mt-2 tabular-nums">{merged}</p>
+          <p className="text-[11px] text-zinc-600 mt-1">no threats</p>
         </div>
-        <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-          <p className="text-xs font-medium text-red-600 uppercase tracking-wide">Blocked</p>
-          <p className="text-3xl font-bold text-red-700 mt-1">{blocked}</p>
-          <p className="text-xs text-red-500 mt-0.5">injection attacks stopped</p>
+        <div className="bg-zinc-950 p-5">
+          <p className="text-[10px] font-semibold tracking-widest uppercase text-red-500">Blocked</p>
+          <p className="text-4xl font-semibold text-red-400 mt-2 tabular-nums">{blocked}</p>
+          <p className="text-[11px] text-zinc-600 mt-1">attacks stopped</p>
         </div>
-        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-          <p className="text-xs font-medium text-amber-600 uppercase tracking-wide">AI Bypassed</p>
-          <p className="text-3xl font-bold text-amber-700 mt-1">{attacksWon}</p>
-          <p className="text-xs text-amber-500 mt-0.5">naive model was fooled</p>
+        <div className="bg-zinc-950 p-5">
+          <p className="text-[10px] font-semibold tracking-widest uppercase text-zinc-500">AI Bypassed</p>
+          <p className="text-4xl font-semibold text-zinc-300 mt-2 tabular-nums">{attacksWon}</p>
+          <p className="text-[11px] text-zinc-600 mt-1">naive model fooled</p>
         </div>
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="flex gap-0 border-b border-zinc-800">
         {[
-          { id: 'feed',         label: 'PR History',    icon: Activity },
-          { id: 'contributors', label: 'Contributors',  icon: User },
+          { id: 'feed',         label: 'PR History',   icon: Activity },
+          { id: 'contributors', label: 'Contributors', icon: User },
         ].map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`flex items-center gap-1.5 px-5 py-2.5 text-xs font-semibold tracking-widest uppercase border-b-2 transition-colors -mb-px ${
               tab === id
-                ? 'border-slate-800 text-slate-900'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'border-sky-400 text-sky-400'
+                : 'border-transparent text-zinc-600 hover:text-zinc-400'
             }`}
           >
-            <Icon className="w-3.5 h-3.5" />
+            <Icon className="w-3 h-3" />
             {label}
           </button>
         ))}
@@ -376,11 +357,11 @@ export default function SecurityDashboard({ scans: liveScans, contributorStats: 
 
       {/* PR History tab */}
       {tab === 'feed' && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-px bg-zinc-800">
           {/* Feed list */}
-          <div className="lg:col-span-2 bg-white rounded-lg border border-slate-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100">
-              <h3 className="text-sm font-semibold text-slate-700">All Scans</h3>
+          <div className="lg:col-span-2 bg-zinc-950 overflow-hidden">
+            <div className="px-4 py-3 border-b border-zinc-800">
+              <h3 className="text-[10px] font-semibold tracking-widest uppercase text-zinc-500">All Scans</h3>
             </div>
             <div>
               {scans.map(scan => (
@@ -395,13 +376,13 @@ export default function SecurityDashboard({ scans: liveScans, contributorStats: 
           </div>
 
           {/* Detail panel */}
-          <div className="lg:col-span-3 bg-white rounded-lg border border-slate-200 p-5">
+          <div className="lg:col-span-3 bg-zinc-950 p-6">
             {selectedScan
               ? <PRDetail scan={selectedScan} />
               : (
-                <div className="flex flex-col items-center justify-center h-48 text-slate-400">
-                  <GitPullRequest className="w-8 h-8 mb-2" />
-                  <p className="text-sm">Select a PR to see details</p>
+                <div className="flex flex-col items-center justify-center h-48 text-zinc-700">
+                  <GitPullRequest className="w-6 h-6 mb-2" strokeWidth={1} />
+                  <p className="text-xs font-mono">select a PR</p>
                 </div>
               )
             }
@@ -411,19 +392,18 @@ export default function SecurityDashboard({ scans: liveScans, contributorStats: 
 
       {/* Contributors tab */}
       {tab === 'contributors' && (
-        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden max-w-2xl">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-700">Contributor Reputation</h3>
-            <span className="text-xs text-slate-400">Based on scan history — use this to identify bad actors</span>
+        <div className="border border-zinc-800 overflow-hidden max-w-2xl">
+          <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900">
+            <h3 className="text-[10px] font-semibold tracking-widest uppercase text-zinc-500">Contributor Reputation</h3>
           </div>
           <div>
             {authorStats.map(stat => (
               <AuthorRow key={stat.author} stat={stat} />
             ))}
           </div>
-          <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
-            <p className="text-xs text-slate-400">
-              Contributors with a high block rate are flagging repeated injection attempts and may warrant removal from the repository.
+          <div className="px-4 py-3 border-t border-zinc-800 bg-zinc-900">
+            <p className="text-[11px] text-zinc-600 font-mono">
+              High block rate = repeated injection attempts. Consider removing from repo.
             </p>
           </div>
         </div>
