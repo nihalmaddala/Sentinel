@@ -10,6 +10,7 @@ export default function DashboardLayout() {
     const [loading, setLoading]                   = useState(true);
     const [refreshing, setRefreshing]             = useState(false);
     const [lastUpdated, setLastUpdated]           = useState(null);
+    const [dbError, setDbError]                   = useState(null);
 
     const loadData = useCallback(async (silent = false) => {
         if (silent) setRefreshing(true);
@@ -22,8 +23,10 @@ export default function DashboardLayout() {
             setScans(scansData);
             setContributorStats(statsData);
             setLastUpdated(new Date());
+            setDbError(null);
         } catch (err) {
             console.error('[dashboard] Failed to load data:', err.message);
+            setDbError(err.message);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -35,6 +38,7 @@ export default function DashboardLayout() {
 
     // Realtime — auto-refresh whenever a new scan row is inserted
     useEffect(() => {
+        if (!supabaseClient) return; // no Supabase configured, skip
         const channel = supabaseClient
             .channel('scans-live')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'scans' }, () => {
@@ -42,7 +46,7 @@ export default function DashboardLayout() {
                 loadData(true);
             })
             .subscribe();
-        return () => { supabaseClient.removeChannel(channel); };
+        return () => { supabaseClient?.removeChannel(channel); };
     }, [loadData]);
 
     const blockedCount = scans.filter(s => s.status === 'BLOCKED').length;
@@ -71,10 +75,13 @@ export default function DashboardLayout() {
                 </nav>
 
                 <div className="p-4 border-t border-slate-200 space-y-2">
-                    {lastUpdated && (
-                        <p className="text-xs text-slate-400">
-                            Updated {lastUpdated.toLocaleTimeString()}
-                        </p>
+                    {/* DB status indicator */}
+                    {dbError ? (
+                        <p className="text-xs text-red-500 font-mono break-all">⚠ DB: {dbError}</p>
+                    ) : lastUpdated ? (
+                        <p className="text-xs text-emerald-600">● Live — {lastUpdated.toLocaleTimeString()}</p>
+                    ) : (
+                        <p className="text-xs text-slate-400">Connecting…</p>
                     )}
                     <button
                         onClick={() => loadData(true)}
@@ -94,7 +101,11 @@ export default function DashboardLayout() {
                             Loading scan history…
                         </div>
                     ) : (
-                        <SecurityDashboard scans={scans} contributorStats={contributorStats} />
+                        <SecurityDashboard
+                            scans={scans}
+                            contributorStats={contributorStats}
+                            connected={!dbError && lastUpdated !== null}
+                        />
                     )}
                 </div>
             </main>

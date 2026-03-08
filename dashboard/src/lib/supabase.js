@@ -1,16 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseClient = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
-  {
-    realtime: { params: { eventsPerSecond: 10 } },
-  }
-);
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// If env vars are not set the dashboard falls back to demo data — no crash.
+const supabaseClient = (SUPABASE_URL && SUPABASE_ANON_KEY)
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      realtime: { params: { eventsPerSecond: 10 } },
+    })
+  : null;
 
 // ── Scans ─────────────────────────────────────────────────────────────────────
 
 export async function fetchScans() {
+  if (!supabaseClient) return [];
   const { data, error } = await supabaseClient
     .from('scans')
     .select('id, author, pr_number, pr_title, repo, status, summary, scanned_at')
@@ -36,6 +39,7 @@ export async function fetchScans() {
 // ── Contributor stats ─────────────────────────────────────────────────────────
 
 export async function fetchContributorStats() {
+  if (!supabaseClient) return [];
   const { data, error } = await supabaseClient
     .from('contributor_stats')
     .select('author, total, blocked, merged, block_pct, last_seen');
