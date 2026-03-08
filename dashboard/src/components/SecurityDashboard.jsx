@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import {
-  ShieldCheck, ShieldX, AlertTriangle, User,
-  ChevronDown, ChevronRight, GitPullRequest, Clock,
+  ShieldCheck, ShieldX, GitPullRequest, Clock,
   ThumbsUp, ThumbsDown, Activity
 } from 'lucide-react';
 
 // ── Static demo data ──────────────────────────────────────────────────────────
 
+// Strip conventional commit prefixes (feat:, fix:, chore:, docs:, refactor:, etc.)
+function cleanTitle(title) {
+  return (title || '').replace(/^(feat|fix|chore|docs|refactor|style|test|perf|ci|build|revert)(\(.+?\))?:\s*/i, '');
+}
+
 const DEMO_SCANS = [
   {
     id: 'clean-100',
     prNumber: 100,
-    prTitle: 'refactor: improve login validation logic',
+    prTitle: 'improve login validation logic',
     author: 'dev-engineer',
     repo: 'nihalmaddala/hackformerced-test',
-    status: 'MERGED',
+    status: 'CAN_MERGE',
     scannedAt: new Date(Date.now() - 120000).toISOString(),
     summary: 'Clean PR. Improves input validation with proper sanitization and error handling. No injection attempts detected.',
     attackType: null,
@@ -24,7 +28,7 @@ const DEMO_SCANS = [
   {
     id: 'attack1-201',
     prNumber: 201,
-    prTitle: 'fix: minor performance optimization in cache layer',
+    prTitle: 'minor performance optimization in cache layer',
     author: 'attacker-bot',
     repo: 'nihalmaddala/hackformerced-test',
     status: 'BLOCKED',
@@ -43,7 +47,7 @@ const DEMO_SCANS = [
   {
     id: 'attack2-202',
     prNumber: 202,
-    prTitle: 'chore: add utility helper functions',
+    prTitle: 'add utility helper functions',
     author: 'attacker-bot',
     repo: 'nihalmaddala/hackformerced-test',
     status: 'BLOCKED',
@@ -59,7 +63,7 @@ const DEMO_SCANS = [
   {
     id: 'attack3-203',
     prNumber: 203,
-    prTitle: 'docs: update API documentation strings',
+    prTitle: 'update API documentation strings',
     author: 'attacker-bot',
     repo: 'nihalmaddala/hackformerced-test',
     status: 'BLOCKED',
@@ -77,10 +81,10 @@ const DEMO_SCANS = [
   {
     id: 'clean-104',
     prNumber: 104,
-    prTitle: 'feat: add dark mode toggle to settings page',
+    prTitle: 'add dark mode toggle to settings page',
     author: 'dev-engineer',
     repo: 'nihalmaddala/hackformerced-test',
-    status: 'MERGED',
+    status: 'CAN_MERGE',
     scannedAt: new Date(Date.now() - 10000).toISOString(),
     summary: 'Clean UI change. Adds a dark mode preference toggle stored in localStorage. No sensitive data touched, no injection patterns detected.',
     attackType: null,
@@ -104,10 +108,10 @@ function timeAgo(iso) {
 function buildAuthorStats(scans) {
   const map = {};
   for (const s of scans) {
-    if (!map[s.author]) map[s.author] = { author: s.author, total: 0, blocked: 0, merged: 0 };
+    if (!map[s.author]) map[s.author] = { author: s.author, total: 0, blocked: 0, canMerge: 0 };
     map[s.author].total++;
     if (s.status === 'BLOCKED') map[s.author].blocked++;
-    else map[s.author].merged++;
+    else map[s.author].canMerge++;
   }
   return Object.values(map).sort((a, b) => b.blocked - a.blocked);
 }
@@ -115,61 +119,42 @@ function buildAuthorStats(scans) {
 // ── PR Feed Row ───────────────────────────────────────────────────────────────
 
 function PRRow({ scan, onSelect, selected }) {
-  const isMerged  = scan.status === 'MERGED';
-  const critCount = scan.patternMatches.filter(m => m.severity === 'CRITICAL').length;
+  const isClean = scan.status !== 'BLOCKED';
 
   return (
     <button
       onClick={() => onSelect(scan)}
-      className={`w-full text-left px-4 py-3.5 border-b border-slate-100 transition-colors flex items-start gap-3 ${
+      className={`w-full text-left px-4 py-4 border-b border-slate-100 transition-colors ${
         selected ? 'bg-slate-50' : 'hover:bg-slate-50/60'
       }`}
     >
-      {/* Verdict icon */}
-      <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
-        isMerged ? 'bg-emerald-100' : 'bg-red-100'
-      }`}>
-        {isMerged
-          ? <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          : <ShieldX className="w-4 h-4 text-red-600" />
-        }
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-xs font-mono text-slate-400">#{scan.prNumber}</span>
-            <span className="text-sm font-medium text-slate-800 truncate">{scan.prTitle}</span>
-          </div>
-          <span className={`flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${
-            isMerged
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'bg-red-100 text-red-700'
+      <div className="flex items-center justify-between gap-3">
+        {/* Name + title */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
+            isClean ? 'bg-emerald-100' : 'bg-red-100'
           }`}>
-            {scan.status}
-          </span>
+            {isClean
+              ? <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              : <ShieldX className="w-4 h-4 text-red-600" />
+            }
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-semibold text-slate-700">@{scan.author}</span>
+            <p className="text-sm text-slate-600 truncate mt-0.5">{cleanTitle(scan.prTitle)}</p>
+          </div>
         </div>
-
-        <div className="mt-1 flex items-center gap-3 text-xs text-slate-400">
-          <span className="flex items-center gap-1">
-            <User className="w-3 h-3" />
-            @{scan.author}
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {timeAgo(scan.scannedAt)}
-          </span>
-          {!isMerged && critCount > 0 && (
-            <span className="text-red-500 font-semibold">
-              {critCount} CRITICAL
-            </span>
-          )}
-          {scan.attackType && (
-            <span className="text-amber-600 italic truncate">{scan.attackType}</span>
-          )}
-        </div>
+        {/* Status badge */}
+        <span className={`flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full ${
+          isClean ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+        }`}>
+          {isClean ? 'Can Merge' : 'Blocked'}
+        </span>
       </div>
+      {/* Summary preview */}
+      {scan.summary && (
+        <p className="mt-2 text-xs text-slate-400 line-clamp-2 pl-9">{scan.summary}</p>
+      )}
     </button>
   );
 }
@@ -177,49 +162,36 @@ function PRRow({ scan, onSelect, selected }) {
 // ── PR Detail Panel ───────────────────────────────────────────────────────────
 
 function PRDetail({ scan }) {
-  const isMerged  = scan.status === 'MERGED';
-  const [patternsOpen, setPatternsOpen] = useState(!isMerged);
-
-  const critCount = scan.patternMatches.filter(m => m.severity === 'CRITICAL').length;
-  const highCount = scan.patternMatches.filter(m => m.severity === 'HIGH').length;
+  const isClean = scan.status !== 'BLOCKED';
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Header */}
-      <div className={`rounded-xl border p-5 ${isMerged ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+      <div className={`rounded-xl border p-5 ${isClean ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-white/70">
-              {isMerged
+              {isClean
                 ? <ShieldCheck className="w-6 h-6 text-emerald-600" />
                 : <ShieldX className="w-6 h-6 text-red-600" />
               }
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-base font-bold text-slate-900">PR #{scan.prNumber}</h3>
+                <span className="text-base font-bold text-slate-900">@{scan.author}</span>
                 <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                  isMerged ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'
+                  isClean ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'
                 }`}>
-                  {scan.status}
+                  {isClean ? 'Can Merge' : 'Blocked'}
                 </span>
-                {scan.probe.attackSucceeded && (
-                  <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">
-                    AI was fooled — Sentinel blocked
-                  </span>
-                )}
               </div>
-              <p className="text-sm text-slate-600 mt-0.5">{scan.prTitle}</p>
+              <p className="text-sm text-slate-600 mt-0.5">{cleanTitle(scan.prTitle)}</p>
             </div>
           </div>
-          <div className="text-right text-xs text-slate-500 flex-shrink-0 space-y-0.5">
-            <div className="flex items-center gap-1 justify-end">
-              <User className="w-3 h-3" />
-              <span className="font-medium">@{scan.author}</span>
-            </div>
+          <div className="text-right text-xs text-slate-400 flex-shrink-0 space-y-1">
             <div className="flex items-center gap-1 justify-end">
               <GitPullRequest className="w-3 h-3" />
-              <span>{scan.repo}</span>
+              <span>#{scan.prNumber}</span>
             </div>
             <div className="flex items-center gap-1 justify-end">
               <Clock className="w-3 h-3" />
@@ -227,66 +199,43 @@ function PRDetail({ scan }) {
             </div>
           </div>
         </div>
-
-        {scan.attackType && (
-          <div className="mt-3 pt-3 border-t border-red-200 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-            <span className="text-sm font-semibold text-slate-700">Attack type: <span className="text-red-700">{scan.attackType}</span></span>
-          </div>
-        )}
       </div>
 
       {/* Summary */}
-      <div className="bg-white rounded-lg border border-slate-200 p-4">
-        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Summary</h4>
-        <p className="text-sm text-slate-700 leading-relaxed">{scan.summary}</p>
-      </div>
+      {scan.summary && (
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <p className="text-sm text-slate-700 leading-relaxed">{scan.summary}</p>
+        </div>
+      )}
 
-      {/* Pattern matches — collapsible */}
-      {scan.patternMatches.length > 0 && (
+      {/* Pattern matches */}
+      {scan.patternMatches?.length > 0 && (
         <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-          <button
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-            onClick={() => setPatternsOpen(v => !v)}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-700">Injection Patterns Detected</span>
-              {critCount > 0 && (
-                <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">
-                  {critCount} CRITICAL
-                </span>
-              )}
-              {highCount > 0 && (
-                <span className="text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">
-                  {highCount} HIGH
-                </span>
-              )}
-            </div>
-            {patternsOpen
-              ? <ChevronDown className="w-4 h-4 text-slate-400" />
-              : <ChevronRight className="w-4 h-4 text-slate-400" />
-            }
-          </button>
-          {patternsOpen && (
-            <div className="border-t border-slate-100 divide-y divide-slate-100">
-              {scan.patternMatches.map((m, i) => (
-                <div key={i} className="px-4 py-2.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                      m.severity === 'CRITICAL' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {m.severity}
-                    </span>
-                    <span className="text-xs text-slate-500">Line {m.lineNumber}</span>
-                    <span className="text-xs text-slate-700">{m.description}</span>
-                  </div>
+          <div className="px-4 py-3 border-b border-slate-100">
+            <span className="text-sm font-semibold text-slate-700">
+              Injection Patterns Detected ({scan.patternMatches.length})
+            </span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {scan.patternMatches.map((m, i) => (
+              <div key={i} className="px-4 py-2.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                    m.severity === 'CRITICAL' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {m.severity}
+                  </span>
+                  {m.lineNumber && <span className="text-xs text-slate-500">Line {m.lineNumber}</span>}
+                  <span className="text-xs text-slate-700">{m.description}</span>
+                </div>
+                {m.lineContent && (
                   <code className="mt-1.5 block text-xs text-slate-500 bg-slate-50 rounded px-2 py-1 font-mono truncate">
                     {m.lineContent}
                   </code>
-                </div>
-              ))}
-            </div>
-          )}
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -325,7 +274,7 @@ function AuthorRow({ stat }) {
           <div className="flex items-center gap-2 text-xs text-slate-400 flex-shrink-0">
             <span className="flex items-center gap-0.5">
               <ThumbsUp className="w-3 h-3 text-emerald-500" />
-              {stat.merged}
+              {stat.canMerge ?? stat.merged ?? 0}
             </span>
             <span className="flex items-center gap-0.5">
               <ThumbsDown className="w-3 h-3 text-red-500" />
@@ -340,15 +289,17 @@ function AuthorRow({ stat }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function SecurityDashboard({ scans: liveScans, contributorStats: liveContributorStats }) {
-  // Fall back to demo data when Supabase is not configured or returns nothing
-  const scans       = liveScans?.length ? liveScans : DEMO_SCANS;
-  const [selectedScan, setSelectedScan] = useState(scans[1] ?? scans[0]);
+export default function SecurityDashboard({ scans: liveScans, contributorStats: liveContributorStats, connected }) {
+  // Only fall back to demo data when Supabase is NOT connected.
+  // When connected but empty, show the real empty state.
+  const usingDemo = !connected && (!liveScans || liveScans.length === 0);
+  const scans     = usingDemo ? DEMO_SCANS : (liveScans || []);
+  const [selectedScan, setSelectedScan] = useState(scans[1] ?? scans[0] ?? null);
   const [tab, setTab]                   = useState('feed'); // 'feed' | 'contributors'
 
   const totalScans  = scans.length;
   const blocked     = scans.filter(s => s.status === 'BLOCKED').length;
-  const merged      = scans.filter(s => s.status === 'MERGED').length;
+  const merged      = scans.filter(s => s.status !== 'BLOCKED').length;
   const attacksWon  = scans.filter(s => s.probe?.attackSucceeded).length;
   const authorStats = liveContributorStats?.length ? liveContributorStats : buildAuthorStats(scans);
 
@@ -361,7 +312,24 @@ export default function SecurityDashboard({ scans: liveScans, contributorStats: 
         </p>
       </div>
 
-      {/* KPIs */}
+      {/* Demo data banner */}
+      {usingDemo && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
+          <span className="font-semibold">Demo mode</span> — showing sample data. Connect Supabase and run a PR to see real scans.
+        </div>
+      )}
+
+      {/* Empty state when connected but no scans yet */}
+      {connected && scans.length === 0 && (
+        <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
+          <ShieldCheck className="w-12 h-12 text-slate-300" />
+          <p className="text-base font-medium text-slate-500">No scans yet</p>
+          <p className="text-sm">Open a pull request in your monitored repo to trigger the first scan.</p>
+        </div>
+      )}
+
+      {/* Only render feed content when there are scans to show */}
+      {scans.length > 0 && (<>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg border border-slate-200">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total PRs</p>
@@ -369,9 +337,9 @@ export default function SecurityDashboard({ scans: liveScans, contributorStats: 
           <p className="text-xs text-slate-400 mt-0.5">scanned all time</p>
         </div>
         <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
-          <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Merged</p>
+          <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Can Merge</p>
           <p className="text-3xl font-bold text-emerald-700 mt-1">{merged}</p>
-          <p className="text-xs text-emerald-500 mt-0.5">clean and approved</p>
+          <p className="text-xs text-emerald-500 mt-0.5">clean, no threats found</p>
         </div>
         <div className="bg-red-50 p-4 rounded-lg border border-red-200">
           <p className="text-xs font-medium text-red-600 uppercase tracking-wide">Blocked</p>
@@ -460,6 +428,7 @@ export default function SecurityDashboard({ scans: liveScans, contributorStats: 
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 }
