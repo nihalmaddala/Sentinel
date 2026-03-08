@@ -39,7 +39,7 @@ function enforce(ctx) {
   const score = `${((verdict.overallScore || 0) * 100).toFixed(0)}%`;
 
   console.log(`\n╔══════════════════════════════════════╗`);
-  console.log(`║  ARGUS COMPLIANCE VERDICT             ║`);
+  console.log(`║  SENTINEL COMPLIANCE VERDICT          ║`);
   console.log(`║  PR #${String(pr?.number || '?').padEnd(32)}║`);
   console.log(`║  ${label.padEnd(37)}║`);
   console.log(`║  Risk Score: ${score.padEnd(26)}║`);

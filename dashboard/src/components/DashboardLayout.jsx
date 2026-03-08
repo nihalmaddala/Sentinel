@@ -51,7 +51,7 @@ export default function DashboardLayout() {
                 <div className="p-5 border-b border-slate-200 flex items-center gap-2.5">
                     <Shield className="w-6 h-6 text-slate-800" />
                     <div>
-                        <h1 className="text-lg font-bold tracking-tight text-slate-900">Argus</h1>
+                        <h1 className="text-lg font-bold tracking-tight text-slate-900">Sentinel</h1>
                         <p className="text-xs text-slate-400">Security Agent</p>
                     </div>
                 </div>
@@ -87,7 +87,7 @@ export default function DashboardLayout() {
                     </button>
                 </nav>
                 <div className="p-4 border-t border-slate-200">
-                    <p className="text-xs text-slate-400">Argus Security v2.0</p>
+                    <p className="text-xs text-slate-400">Sentinel Security v2.0</p>
                 </div>
             </aside>
 

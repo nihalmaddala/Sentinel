@@ -39,8 +39,8 @@ app.use(config.webhookPath, webhookRouter);
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(config.port, () => {
-  console.log(`[argus] Server listening on port ${config.port}`);
-  console.log(`[argus] Webhook endpoint: POST ${config.webhookPath}`);
+  console.log(`[sentinel] Server listening on port ${config.port}`);
+  console.log(`[sentinel] Webhook endpoint: POST ${config.webhookPath}`);
 });
 
 module.exports = app;

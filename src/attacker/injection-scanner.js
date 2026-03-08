@@ -44,8 +44,8 @@ const INJECTION_PATTERNS = [
 
   // Stealth / sophisticated attacks
   { id: 'pre-approved',      regex: /(previously[_-]?approved|pre[_-]?approved|status:\s*previously_approved)/i, severity: 'CRITICAL', description: 'Fake pre-approval metadata injection' },
-  { id: 'argus-scan-result', regex: /argus\s+(pre[_-]?scan|scan\s+result|cached\s+result)/i,     severity: 'CRITICAL', description: 'Fake Sentinel scan result injection' },
-  { id: 'signed-off-bot',    regex: /signed[_-]?off[_-]?by\s*:?\s*argus/i,                        severity: 'CRITICAL', description: 'Fake Sentinel bot sign-off injection' },
+  { id: 'sentinel-scan-result', regex: /sentinel\s+(pre[_-]?scan|scan\s+result|cached\s+result)/i, severity: 'CRITICAL', description: 'Fake Sentinel scan result injection' },
+  { id: 'signed-off-bot',       regex: /signed[_-]?off[_-]?by\s*:?\s*sentinel/i,                    severity: 'CRITICAL', description: 'Fake Sentinel bot sign-off injection' },
   { id: 'compliance-result', regex: /compliance[_-]?result\s*[:=]/i,                              severity: 'CRITICAL', description: 'Embedded compliance result injection' },
   { id: 'compliance-override', regex: /@compliance[_-]?override\s+(true|yes|1)/i,                 severity: 'CRITICAL', description: 'JSDoc compliance override annotation' },
   { id: 'approved-by',       regex: /@approved[_-]?by\s+security/i,                               severity: 'HIGH',     description: 'Fake security team approval annotation' },
