@@ -17,6 +17,64 @@ if (config.supabase.url && config.supabase.serviceRoleKey) {
   console.warn('[supabase] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set — persistence disabled');
 }
 
+// ── saveScan ──────────────────────────────────────────────────────────────────
+/**
+ * Persist one PR scan result to the `scans` table.
+ * Called from webhook.js after the pipeline resolves.
+ *
+ * @param {object} ctx  Pipeline context (ctx.pr, ctx.verdict, ctx.injectionReport)
+ * @returns {Promise<string|null>}  Inserted row UUID, or null if Supabase is not configured.
+ */
+async function saveScan(ctx) {
+  if (!supabase) return null;
+
+  const { pr, verdict, injectionReport } = ctx;
+  const decision = verdict?.decision || 'ESC_HUMAN';
+
+  // Map pipeline decision to dashboard status
+  const status = decision === 'BLOCK' ? 'BLOCKED'
+               : decision === 'MERGE' ? 'MERGED'
+               : 'ESC_HUMAN';
+
+  const row = {
+    pr_number:        pr.number,
+    pr_title:         pr.title || '(no title)',
+    author:           pr.user  || 'unknown',
+    repo:             pr.repo,
+    owner:            pr.owner,
+    sha:              pr.sha   || null,
+    status,
+    summary:          verdict?.reasoning || null,
+    attack_type:      injectionReport?.patternMatches?.length
+                        ? (injectionReport.patternMatches[0]?.description || null)
+                        : null,
+    attack_succeeded: injectionReport?.probe?.attackSucceeded  ?? false,
+    defense_held:     injectionReport?.probe?.defenseHeld      ?? true,
+    pattern_matches:  injectionReport?.patternMatches          || [],
+    probe_results:    injectionReport?.probe                   || {},
+    recommendations:  verdict?.recommendations                 || [],
+    scanned_at:       new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase.from('scans').insert(row).select('id').single();
+  if (error) {
+    console.error('[supabase] Failed to save scan:', error.message);
+    return null;
+  }
+
+  console.log(`[supabase] Scan saved: ${data.id} — ${status} PR #${pr.number}`);
+  return data.id;
+}
+
+/**
+ * Returns the raw Supabase client for direct queries.
+ */
+function getClient() {
+  return supabase;
+}
+
+module.exports = { saveScan, getClient };
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**

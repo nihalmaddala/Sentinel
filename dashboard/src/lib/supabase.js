@@ -5,34 +5,50 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-// ── Overview ──────────────────────────────────────────────────────────────────
+// ── Scans ─────────────────────────────────────────────────────────────────────
 
-export async function fetchOverview() {
-  const { data, error } = await supabase.rpc('get_dashboard_overview');
+/**
+ * Fetch all PR scans ordered newest-first.
+ * Maps Supabase rows to the shape SecurityDashboard expects.
+ */
+export async function fetchScans() {
+  const { data, error } = await supabase
+    .from('scans')
+    .select('*')
+    .order('scanned_at', { ascending: false });
   if (error) throw error;
-  return data;
+
+  return (data || []).map((row) => ({
+    id:             row.id,
+    prNumber:       row.pr_number,
+    prTitle:        row.pr_title,
+    author:         row.author,
+    repo:           `${row.owner}/${row.repo}`,
+    status:         row.status,          // 'MERGED' | 'BLOCKED' | 'ESC_HUMAN'
+    summary:        row.summary,
+    attackType:     row.attack_type,
+    patternMatches: row.pattern_matches || [],
+    probe: {
+      attackSucceeded: row.attack_succeeded,
+      defenseHeld:     row.defense_held,
+      ...(row.probe_results || {}),
+    },
+    recommendations: row.recommendations || [],
+    scannedAt:       row.scanned_at,
+  }));
 }
 
-// ── Issues ────────────────────────────────────────────────────────────────────
+// ── Contributor stats ─────────────────────────────────────────────────────────
 
-export async function fetchIssues() {
+/**
+ * Fetch per-author reputation data from the contributor_stats view.
+ */
+export async function fetchContributorStats() {
   const { data, error } = await supabase
-    .from('issues')
-    .select('issue_id, title, severity, regulation, status, repository, pr_number, created_at')
-    .neq('status', 'complete')
-    .order('created_at', { ascending: false });
+    .from('contributor_stats')
+    .select('*');
   if (error) throw error;
   return data || [];
-}
-
-export async function fetchIssue(issueId) {
-  const { data, error } = await supabase
-    .from('issues')
-    .select('*')
-    .eq('issue_id', issueId)
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 export default supabase;

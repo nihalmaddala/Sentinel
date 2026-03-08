@@ -340,15 +340,17 @@ function AuthorRow({ stat }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function SecurityDashboard() {
-  const [selectedScan, setSelectedScan] = useState(DEMO_SCANS[1]);
+export default function SecurityDashboard({ scans: liveScans, contributorStats: liveContributorStats }) {
+  // Fall back to demo data when Supabase is not configured or returns nothing
+  const scans       = liveScans?.length ? liveScans : DEMO_SCANS;
+  const [selectedScan, setSelectedScan] = useState(scans[1] ?? scans[0]);
   const [tab, setTab]                   = useState('feed'); // 'feed' | 'contributors'
 
-  const totalScans  = DEMO_SCANS.length;
-  const blocked     = DEMO_SCANS.filter(s => s.status === 'BLOCKED').length;
-  const merged      = DEMO_SCANS.filter(s => s.status === 'MERGED').length;
-  const attacksWon  = DEMO_SCANS.filter(s => s.probe.attackSucceeded).length;
-  const authorStats = buildAuthorStats(DEMO_SCANS);
+  const totalScans  = scans.length;
+  const blocked     = scans.filter(s => s.status === 'BLOCKED').length;
+  const merged      = scans.filter(s => s.status === 'MERGED').length;
+  const attacksWon  = scans.filter(s => s.probe?.attackSucceeded).length;
+  const authorStats = liveContributorStats?.length ? liveContributorStats : buildAuthorStats(scans);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -413,7 +415,7 @@ export default function SecurityDashboard() {
               <h3 className="text-sm font-semibold text-slate-700">All Scans</h3>
             </div>
             <div>
-              {DEMO_SCANS.map(scan => (
+              {scans.map(scan => (
                 <PRRow
                   key={scan.id}
                   scan={scan}

@@ -1,29 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, AlertCircle, Shield, ShieldAlert } from 'lucide-react';
-import OverviewDashboard from './OverviewDashboard';
-import IssuesList from './IssuesList';
-import IssueDetail from './IssueDetail';
+import { LayoutDashboard, Shield, ShieldAlert } from 'lucide-react';
 import SecurityDashboard from './SecurityDashboard';
-import { fetchOverview, fetchIssues, fetchIssue } from '../lib/supabase';
+import { fetchScans, fetchContributorStats } from '../lib/supabase';
 
 export default function DashboardLayout() {
-    const [currentView, setCurrentView] = useState('overview');
-    const [selectedIssue, setSelectedIssue] = useState(null);
-    const [issues, setIssues] = useState([]);
-    const [overview, setOverview] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [currentView, setCurrentView]           = useState('security');
+    const [scans, setScans]                       = useState([]);
+    const [contributorStats, setContributorStats] = useState([]);
+    const [loading, setLoading]                   = useState(true);
 
     useEffect(() => {
         async function loadData() {
             try {
-                const [ovData, issuesData] = await Promise.all([
-                    fetchOverview(),
-                    fetchIssues(),
+                const [scansData, statsData] = await Promise.all([
+                    fetchScans(),
+                    fetchContributorStats(),
                 ]);
-                setOverview(ovData);
-                setIssues(issuesData);
+                setScans(scansData);
+                setContributorStats(statsData);
             } catch (err) {
                 console.error('[dashboard] Failed to load data:', err.message);
+                // Keep empty arrays — SecurityDashboard will fall back to demo data
             } finally {
                 setLoading(false);
             }
@@ -31,19 +28,7 @@ export default function DashboardLayout() {
         loadData();
     }, []);
 
-    const navigateTo = async (view, issueRow = null) => {
-        if (view === 'issueDetail' && issueRow) {
-            try {
-                const full = await fetchIssue(issueRow.issue_id);
-                setSelectedIssue(full);
-            } catch {
-                setSelectedIssue(issueRow);
-            }
-        }
-        setCurrentView(view);
-    };
-
-    const openIssueCount = issues.length;
+    const blockedCount = scans.filter(s => s.status === 'BLOCKED').length;
 
     return (
         <div className="flex h-screen w-full bg-slate-50 text-slate-900 font-sans">
@@ -57,31 +42,14 @@ export default function DashboardLayout() {
                 </div>
                 <nav className="flex-1 p-3 space-y-0.5">
                     <button
-                        onClick={() => navigateTo('overview')}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded transition-colors ${currentView === 'overview' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
-                    >
-                        <LayoutDashboard className="w-4 h-4" />
-                        Overview
-                    </button>
-                    <button
-                        onClick={() => navigateTo('security')}
+                        onClick={() => setCurrentView('security')}
                         className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded transition-colors ${currentView === 'security' ? 'bg-red-50 text-red-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
                     >
                         <ShieldAlert className="w-4 h-4" />
-                        Injection Shield
-                        <span className="ml-auto bg-red-100 text-red-700 py-0.5 px-2 rounded text-xs font-semibold">
-                            3
-                        </span>
-                    </button>
-                    <button
-                        onClick={() => navigateTo('issues')}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded transition-colors ${currentView === 'issues' || currentView === 'issueDetail' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
-                    >
-                        <AlertCircle className="w-4 h-4" />
-                        Issues
-                        {openIssueCount > 0 && (
-                            <span className="ml-auto bg-slate-200 text-slate-700 py-0.5 px-2 rounded text-xs font-semibold">
-                                {openIssueCount}
+                        PR Security Feed
+                        {blockedCount > 0 && (
+                            <span className="ml-auto bg-red-100 text-red-700 py-0.5 px-2 rounded text-xs font-semibold">
+                                {blockedCount}
                             </span>
                         )}
                     </button>
@@ -95,23 +63,10 @@ export default function DashboardLayout() {
                 <div className="p-8 max-w-7xl mx-auto">
                     {loading ? (
                         <div className="flex items-center justify-center h-64 text-slate-400 text-sm">
-                            Loading compliance data...
+                            Loading scan history…
                         </div>
                     ) : (
-                        <>
-                            {currentView === 'overview' && (
-                                <OverviewDashboard data={overview} onNavigate={navigateTo} />
-                            )}
-                            {currentView === 'security' && (
-                                <SecurityDashboard />
-                            )}
-                            {currentView === 'issues' && (
-                                <IssuesList issues={issues} onNavigate={navigateTo} />
-                            )}
-                            {currentView === 'issueDetail' && selectedIssue && (
-                                <IssueDetail issue={selectedIssue} onBack={() => navigateTo('issues')} />
-                            )}
-                        </>
+                        <SecurityDashboard scans={scans} contributorStats={contributorStats} />
                     )}
                 </div>
             </main>

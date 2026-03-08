@@ -8,6 +8,7 @@ const { createPendingCheck, updateCheck, buildAnnotations } = require('./checks'
 const { postAuditReport } = require('./comments');
 const { fetchPRCommits } = require('./commits');
 const { fetchPRDiff } = require('./diff');
+const { saveScan } = require('../services/supabase');
 
 // Pipeline orchestrator — wired in Increment 3.
 // Gracefully falls back to a stub if not yet implemented.
@@ -120,6 +121,11 @@ async function processPullRequest(payload) {
     if (ctx.verdict.decision !== 'MERGE') {
       await postAuditReport(token, owner, repo, prNumber, ctx);
     }
+
+    // Persist to Supabase — non-fatal if it fails
+    saveScan(ctx).catch((err) =>
+      console.error('[webhook] saveScan failed (non-fatal):', err.message)
+    );
 
     console.log(`[webhook] ── PR #${prNumber} resolved: ${ctx.verdict.decision}\n`);
   } catch (err) {
