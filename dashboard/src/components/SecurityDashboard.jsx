@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   ShieldCheck, ShieldX, GitPullRequest, Clock,
-  ThumbsUp, ThumbsDown, Activity
+  ThumbsUp, ThumbsDown, Activity, User
 } from 'lucide-react';
 
 // ── Static demo data ──────────────────────────────────────────────────────────
@@ -304,7 +304,7 @@ export default function SecurityDashboard({ scans: liveScans, contributorStats: 
   const authorStats = liveContributorStats?.length ? liveContributorStats : buildAuthorStats(scans);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-slate-900">PR Security Feed</h2>
         <p className="text-sm text-slate-500 mt-1">
