@@ -35,6 +35,7 @@ function renderInjectionReport(report) {
   lines.push('|-------|--------|');
   lines.push(`| Pattern Scan (Layer 1) | ${report.detected ? 'FAIL — Injection patterns found' : 'PASS — No patterns found'} |`);
   lines.push(`| Undefended GPT-4o Probe | ${report.probe.attackSucceeded ? `FOOLED — returned \`${report.probe.undefended.decision}\`` : `Held firm — returned \`${report.probe.undefended.decision}\``} |`);
+  lines.push(`| Semantic Diff | ${report.probe.behaviorChanged ? '**CONFIRMED — payload changed model verdict**' : 'No behavioral change detected'} |`);
   lines.push(`| Defended Sentinel Probe | ${report.probe.defenseHeld ? `Blocked — returned \`${report.probe.defended.decision}\`` : `BYPASSED — returned \`${report.probe.defended.decision}\``} |`);
   lines.push(`| Overall Status | ${report.status === 'CRITICAL' ? '**CRITICAL — Attack succeeded**' : '**BLOCKED — Defense held**'} |`);
   lines.push('');
@@ -54,6 +55,27 @@ function renderInjectionReport(report) {
 
   // Probe details
   lines.push('### Live Attack Probe Results');
+  lines.push('');
+
+  lines.push('<details>');
+  lines.push('<summary>Semantic Diff — payload-stripped vs original</summary>');
+  lines.push('');
+  lines.push('The same diff was run through GPT-4o twice: once with the full payload, once with all comments and strings stripped.');
+  lines.push('');
+  if (report.probe.behaviorChanged) {
+    lines.push('**Result: BEHAVIORAL MANIPULATION CONFIRMED**');
+    lines.push('');
+    lines.push(`- With payload: \`${report.probe.undefended.decision}\``);
+    lines.push(`- Without payload: \`${report.probe.semantic?.decision}\``);
+    lines.push('');
+    lines.push('> The payload directly caused the model to change its verdict. This is proof of exploitability, not just pattern detection.');
+  } else {
+    lines.push(`- With payload: \`${report.probe.undefended.decision}\``);
+    lines.push(`- Without payload: \`${report.probe.semantic?.decision}\``);
+    lines.push('');
+    lines.push('> No behavioral change detected between injected and clean diff.');
+  }
+  lines.push('</details>');
   lines.push('');
 
   lines.push('<details>');
