@@ -1,5 +1,5 @@
 {
-  "name": "argus",
+  "name": "sentinel",
   "version": "1.0.0",
   "description": "Autonomous Multi-Regime Compliance Gatekeeper for AI Systems",
   "main": "src/index.js",

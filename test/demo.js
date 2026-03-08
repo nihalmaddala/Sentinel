@@ -4,7 +4,7 @@
  * ╔══════════════════════════════════════════════════════════════════╗
  * ║           ARGUS — Prompt Injection Security Demo                 ║
  * ║                                                                  ║
- * ║  Demonstrates how Argus detects and neutralizes prompt injection ║
+ * ║  Demonstrates how Sentinel detects and neutralizes prompt injection ║
  * ║  attacks embedded in GitHub PR diffs.                            ║
  * ╚══════════════════════════════════════════════════════════════════╝
  *
@@ -156,7 +156,7 @@ async function runScenario(scenario) {
 }
 
 async function main() {
-  printBanner('ARGUS Security Agent — Prompt Injection Detection Demo');
+  printBanner('Sentinel Security Agent — Prompt Injection Detection Demo');
 
   const args      = process.argv.slice(2);
   const attackArg = args.indexOf('--attack');
@@ -193,7 +193,7 @@ async function main() {
 
   const detected = results.filter(r => r.status !== 'CLEAN').length;
   if (detected > 0) {
-    console.log(`\n  🛡️  Argus detected and blocked ${detected}/${toRun.filter(s => s.id !== 'clean').length} attack(s).`);
+    console.log(`\n  🛡️  Sentinel detected and blocked ${detected}/${toRun.filter(s => s.id !== 'clean').length} attack(s).`);
     console.log('  No injected PRs reached the compliance pipeline.');
   } else {
     console.log('\n  ✅  All scenarios passed — no attacks in test run.');

@@ -2,7 +2,7 @@
 /**
  * Tests different levels of injection sophistication against the undefended probe.
  * Goal: find an injection that FOOLS the naive model but is BLOCKED by the hardened one.
- * This creates the compelling demo narrative: "look what happens WITHOUT Argus defense."
+ * This creates the compelling demo narrative: "look what happens WITHOUT Sentinel defense."
  */
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
@@ -126,7 +126,7 @@ async function probe(diff, name) {
 }
 
 (async () => {
-  console.log('\n🔬 Argus Injection Probe — Stealth Attack Testing');
+  console.log('\n🔬 Sentinel Injection Probe — Stealth Attack Testing');
   console.log('   Looking for attacks that fool undefended GPT-4o-mini');
   console.log('   but are blocked by the hardened Sentinel prompt.\n');
 

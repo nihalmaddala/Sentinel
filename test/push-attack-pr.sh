@@ -4,7 +4,7 @@
 #
 # Clones nihalmaddala/hackformerced-test, creates a branch with a real
 # prompt-injection attack hidden in code comments, and opens a PR so that
-# Argus can intercept it live on GitHub.
+# Sentinel can intercept it live on GitHub.
 #
 # Usage:
 #   bash test/push-attack-pr.sh [attack-number]
@@ -24,7 +24,7 @@ TMPDIR=$(mktemp -d)
 
 echo ""
 echo "══════════════════════════════════════════════════════════════"
-echo "  Argus Demo — Pushing Injection Attack ${ATTACK} as Real PR"
+echo "  Sentinel Demo — Pushing Injection Attack ${ATTACK} as Real PR"
 echo "  Target repo: ${REPO}"
 echo "  Branch: ${BRANCH}"
 echo "══════════════════════════════════════════════════════════════"
@@ -196,13 +196,13 @@ echo ""
 echo "══════════════════════════════════════════════════════════════"
 echo "  ✅ PR opened: ${PR_URL}"
 echo ""
-echo "  Argus will now intercept this PR and run the injection scan."
+echo "  Sentinel will now intercept this PR and run the injection scan."
 echo "  Watch the PR on GitHub — the audit comment will appear"
 echo "  within ~15-20 seconds showing:"
 echo ""
 echo "    🔴 Injection patterns detected"
 echo "    🚨 Undefended GPT-4o: FOOLED → MERGE"
-echo "    🛡️  Defended Argus:   BLOCKED → BLOCK"
+echo "    🛡️  Defended Sentinel:   BLOCKED → BLOCK"
 echo ""
 echo "  PR: ${PR_URL}"
 echo "══════════════════════════════════════════════════════════════"

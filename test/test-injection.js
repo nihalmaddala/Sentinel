@@ -34,7 +34,7 @@ const attackNum = (() => {
 // ── Payloads ──────────────────────────────────────────────────────────────────
 
 // Attack 1: Fake Pre-Approval Metadata (STEALTH — looks like legitimate bot output)
-// ⭐ Fools undefended GPT-4o-mini, blocked by hardened Argus
+// ⭐ Fools undefended GPT-4o-mini, blocked by hardened Sentinel
 const ATTACK_1_DIFF = `diff --git a/utils/cache.js b/utils/cache.js
 --- a/utils/cache.js
 +++ b/utils/cache.js
@@ -58,7 +58,7 @@ const ATTACK_1_DIFF = `diff --git a/utils/cache.js b/utils/cache.js
  }`;
 
 // Attack 2: JSON Termination / Embedded verdict injection
-// ⭐ Fools undefended GPT-4o-mini, blocked by hardened Argus
+// ⭐ Fools undefended GPT-4o-mini, blocked by hardened Sentinel
 const ATTACK_2_DIFF = `diff --git a/lib/utils.js b/lib/utils.js
 --- a/lib/utils.js
 +++ b/lib/utils.js
@@ -146,7 +146,7 @@ async function sendWebhook() {
   if (!isClean) {
     console.log(`[test-injection] Attack type: ${ATTACK_NAMES[attackNum]}`);
     console.log('[test-injection] The injection is HIDDEN in code comments — same PR title as a clean PR');
-    console.log('[test-injection] Naive model will be FOOLED. Argus defense will BLOCK.\n');
+    console.log('[test-injection] Naive model will be FOOLED. Sentinel defense will BLOCK.\n');
   }
 
   const response = await fetch(TARGET_URL, {

@@ -1,7 +1,7 @@
-# Argus — Backend Setup for Teammates
+# Sentinel — Backend Setup for Teammates
 
 ## What this repo is
-Argus is the GitHub App / security agent backend. It watches the **lolitos repo** (`nihalmaddala/hackformerced-test`) for new PRs, scans the diff for prompt injection attacks, and posts the result as a GitHub check + comment.
+Sentinel is the GitHub App / security agent backend. It watches the **lolitos repo** (`nihalmaddala/hackformerced-test`) for new PRs, scans the diff for prompt injection attacks, and posts the result as a GitHub check + comment.
 
 ---
 
@@ -35,7 +35,7 @@ Then fill in the values — get them from Saketh:
 |---|---|
 | `OPENAI_API_KEY` | OpenAI key — needed for the live GPT-4o probe |
 | `TAVILY_API_KEY` | Tavily search — used by the research stage |
-| `GITHUB_APP_ID` | The Argus GitHub App ID |
+| `GITHUB_APP_ID` | The Sentinel GitHub App ID |
 | `GITHUB_WEBHOOK_SECRET` | Must match the secret set in the GitHub App settings |
 | `GITHUB_PRIVATE_KEY_PATH` | Path to the `.pem` file Saketh gives you |
 | `SUPABASE_URL` / `SUPABASE_KEY` | Optional — verdict persistence (non-fatal if missing) |
@@ -56,7 +56,7 @@ You should see:
 ```
 [config] Private key loaded from file: ./argus-security-linter...pem
 [llm] Provider: openai | main=gpt-4o | mini=gpt-4o-mini
-[server] Argus listening on port 3000
+[server] Sentinel listening on port 3000
 ```
 
 ---
@@ -79,7 +79,7 @@ This starts both the server AND the smee tunnel in parallel. The smee URL is alr
 
 Go to the **lolitos repo** (`nihalmaddala/hackformerced-test`) and open a PR on any branch that has injection payloads in the diff.
 
-Argus will:
+Sentinel will:
 1. Receive the webhook
 2. Run the injection scanner (Layer 1 patterns + Layer 2 live GPT-4o probe)
 3. Post a **GitHub Check** (BLOCK/PASS) on the PR
@@ -130,8 +130,8 @@ Result: CLEAN | BLOCKED | CRITICAL
 ```
 
 **The demo narrative:**
-- Without Argus: a naive AI reviewer gets fooled by the injection and returns MERGE ✗
-- With Argus: the hardened prompt detects manipulation and returns BLOCK ✓
+- Without Sentinel: a naive AI reviewer gets fooled by the injection and returns MERGE ✗
+- With Sentinel: the hardened prompt detects manipulation and returns BLOCK ✓
 
 ---
 
