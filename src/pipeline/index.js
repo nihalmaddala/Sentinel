@@ -14,7 +14,7 @@ const { feedbackLoop }           = require('./neo4j-feedback');
 const { scanForInjection }       = require('../attacker/injection-scanner');
 
 /**
- * Run the full 6-stage Argus autonomic compliance pipeline.
+ * Run the full 6-stage Sentinel compliance pipeline.
  *
  * Stages are run sequentially — each stage mutates and enriches the
  * context object that is threaded through all stages.
@@ -27,7 +27,7 @@ const { scanForInjection }       = require('../attacker/injection-scanner');
 async function runPipeline(payload) {
   const start = Date.now();
   console.log('\n[pipeline] ══════════════════════════════════════');
-  console.log('[pipeline] Argus Autonomic Loop — Starting Run');
+  console.log('[pipeline] Sentinel Pipeline — Starting Run');
   console.log('[pipeline] ══════════════════════════════════════\n');
 
   const ctx = {};
@@ -121,7 +121,7 @@ async function runPipeline(payload) {
         architecturalExposure: 0,
         reasoning: `Pipeline encountered a fatal error: ${err.message}. Manual review required.`,
         citations: [],
-        recommendations: ['Contact the Argus team to investigate the pipeline failure.'],
+        recommendations: ['Contact the Sentinel team to investigate the pipeline failure.'],
         jurisdictionBreakdown: [],
         _source: 'error-fallback',
       };

@@ -124,7 +124,7 @@ PR diff
   │
   └─ Layer 2: Live GPT-4o probe
        ┌─ Undefended probe (vanilla prompt) → does naive GPT-4o get fooled?
-       └─ Defended probe (hardened Argus prompt) → does defense hold?
+       └─ Defended probe (hardened Sentinel prompt) → does defense hold?
 
 Result: CLEAN | BLOCKED | CRITICAL
 ```

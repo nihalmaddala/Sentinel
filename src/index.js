@@ -24,7 +24,7 @@ app.use(express.json());
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/', (_req, res) => {
   res.json({
-    service: 'Argus Compliance Gatekeeper',
+    service: 'Sentinel Security Gatekeeper',
     status: 'ok',
     version: '1.0.0',
   });

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * src/llm/client.js — Unified LLM wrapper for Argus
+ * src/llm/client.js — Unified LLM wrapper for Sentinel
  *
  * Single module used by every pipeline stage. Switching providers is one
  * env var: set OPENROUTER_API_KEY (or LLM_PROVIDER=openrouter) to route

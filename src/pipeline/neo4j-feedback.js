@@ -24,14 +24,14 @@ const DATA_TAG_TYPE_MAP = {
  * Neo4j Feedback Loop — Stage 8 (fire-and-forget)
  *
  * Writes newly discovered graph nodes and edges back to Neo4j based on what
- * Argus learned from processing the PR. Runs after the pipeline completes so
+ * Sentinel learned from processing the PR. Runs after the pipeline completes so
  * it never blocks the verdict or the GitHub response.
  *
  * Discovers and writes:
  *   - Model nodes (from ctx.intent.modelsMentioned)
  *   - Database nodes (from ctx.intent.dataSourcesMentioned)
  *   - READS_FROM / WRITES_TO edges (from ctx.feature.lineageHints)
- *   - DataProperty nodes + CONTAINS edges (from ctx.feature.argusManifest.dataTags)
+ *   - DataProperty nodes + CONTAINS edges (from ctx.feature.sentinelManifest.dataTags)
  *   - Service nodes + INVOKES edges (from ctx.feature.serviceDomains)
  *
  * @param {object} ctx  Final pipeline context (all stages complete)
@@ -40,7 +40,7 @@ async function feedbackLoop(ctx) {
   const models      = ctx.intent?.modelsMentioned      || [];
   const dataSources = ctx.intent?.dataSourcesMentioned || [];
   const taskType    = ctx.intent?.taskType             || null;
-  const manifest    = ctx.feature?.argusManifest       || null;
+  const manifest    = ctx.feature?.sentinelManifest       || null;
   const lineage     = ctx.feature?.lineageHints        || {};
   const prNumber    = ctx.pr?.number                   || 0;
   const prTitle     = ctx.pr?.title                    || '';

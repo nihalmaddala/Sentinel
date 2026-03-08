@@ -96,8 +96,8 @@ async function introspect(ctx) {
   if (feature.serviceDomains?.length > 0) {
     enrichmentLines.push(`Service Domain(s): ${feature.serviceDomains.join(', ')} — use this to constrain your task type classification`);
   }
-  if (feature.argusManifest && Object.keys(feature.argusManifest).length > 0) {
-    const m = feature.argusManifest;
+  if (feature.sentinelManifest && Object.keys(feature.sentinelManifest).length > 0) {
+    const m = feature.sentinelManifest;
     if (m.domain)        enrichmentLines.push(`argus.yaml domain: ${m.domain}`);
     if (m.dataTags?.length > 0) enrichmentLines.push(`argus.yaml declared data types: ${m.dataTags.join(', ')}`);
     if (m.userGeography?.length > 0) enrichmentLines.push(`argus.yaml user geography: ${m.userGeography.join(', ')}`);

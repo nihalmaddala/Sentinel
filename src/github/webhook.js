@@ -132,9 +132,9 @@ async function processPullRequest(payload) {
         overallScore: 0,
         legalRisk: 0,
         architecturalExposure: 0,
-        reasoning: `Argus encountered an internal error: ${err.message}`,
+        reasoning: `Sentinel encountered an internal error: ${err.message}`,
         citations: [],
-        recommendations: ['Contact the Argus team to investigate the pipeline failure.'],
+        recommendations: ['Contact the Sentinel team to investigate the pipeline failure.'],
       }).catch((e) => console.error('[webhook] Failed to update check after error:', e.message));
     }
   }
