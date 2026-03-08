@@ -4,8 +4,6 @@ const { createClient } = require('@supabase/supabase-js');
 const config = require('../config');
 
 // ── Client ────────────────────────────────────────────────────────────────────
-// Uses service role key — bypasses RLS, server-side only.
-
 let supabase = null;
 
 if (config.supabase.url && config.supabase.serviceRoleKey) {
@@ -19,65 +17,46 @@ if (config.supabase.url && config.supabase.serviceRoleKey) {
 
 // ── saveScan ──────────────────────────────────────────────────────────────────
 /**
- * Persist one PR scan result to the `scans` table.
- * Called from webhook.js after the pipeline resolves.
+ * Persist one PR scan to the `scans` table.
+ * Stores only: author, PR identity, verdict (MERGED/BLOCKED), and a plain-English summary.
  *
- * @param {object} ctx  Pipeline context (ctx.pr, ctx.verdict, ctx.injectionReport)
- * @returns {Promise<string|null>}  Inserted row UUID, or null if Supabase is not configured.
+ * @param {object} ctx  Pipeline context (ctx.pr, ctx.verdict)
  */
 async function saveScan(ctx) {
   if (!supabase) return null;
 
-  const { pr, verdict, injectionReport } = ctx;
+  const { pr, verdict } = ctx;
   const decision = verdict?.decision || 'ESC_HUMAN';
 
-  // Map pipeline decision to dashboard status
-  const status = decision === 'BLOCK' ? 'BLOCKED'
-               : decision === 'MERGE' ? 'MERGED'
-               : 'ESC_HUMAN';
+  // Only MERGED or BLOCKED are valid statuses in the new schema
+  if (decision === 'ESC_HUMAN') return null;
 
   const row = {
-    pr_number:        pr.number,
-    pr_title:         pr.title || '(no title)',
-    author:           pr.user  || 'unknown',
-    repo:             pr.repo,
-    owner:            pr.owner,
-    sha:              pr.sha   || null,
-    status,
-    summary:          verdict?.reasoning || null,
-    attack_type:      injectionReport?.patternMatches?.length
-                        ? (injectionReport.patternMatches[0]?.description || null)
-                        : null,
-    attack_succeeded: injectionReport?.probe?.attackSucceeded  ?? false,
-    defense_held:     injectionReport?.probe?.defenseHeld      ?? true,
-    pattern_matches:  injectionReport?.patternMatches          || [],
-    probe_results:    injectionReport?.probe                   || {},
-    recommendations:  verdict?.recommendations                 || [],
-    scanned_at:       new Date().toISOString(),
+    author:     pr.user          || 'unknown',
+    pr_number:  pr.number,
+    pr_title:   pr.title         || '(no title)',
+    repo:       `${pr.owner}/${pr.repo}`,
+    status:     decision === 'BLOCK' ? 'BLOCKED' : 'MERGED',
+    summary:    verdict?.reasoning || null,
+    scanned_at: new Date().toISOString(),
   };
 
   const { data, error } = await supabase.from('scans').insert(row).select('id').single();
   if (error) {
-    console.error('[supabase] Failed to save scan:', error.message);
+    console.error('[supabase] saveScan failed:', error.message);
     return null;
   }
 
-  console.log(`[supabase] Scan saved: ${data.id} — ${status} PR #${pr.number}`);
+  console.log(`[supabase] Saved scan ${data.id} — ${row.status} PR #${row.pr_number} by @${row.author}`);
   return data.id;
 }
 
-/**
- * Returns the raw Supabase client for direct queries.
- */
 function getClient() {
   return supabase;
 }
 
 module.exports = { saveScan, getClient };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
  * Map overallScore (0.0–1.0) → severity string for the dashboard.
  */
 function scoreToSeverity(score) {

@@ -1,54 +1,47 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
+const supabaseClient = createClient(
   import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  {
+    realtime: { params: { eventsPerSecond: 10 } },
+  }
 );
 
 // ── Scans ─────────────────────────────────────────────────────────────────────
 
-/**
- * Fetch all PR scans ordered newest-first.
- * Maps Supabase rows to the shape SecurityDashboard expects.
- */
 export async function fetchScans() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('scans')
-    .select('*')
+    .select('id, author, pr_number, pr_title, repo, status, summary, scanned_at')
     .order('scanned_at', { ascending: false });
   if (error) throw error;
 
   return (data || []).map((row) => ({
-    id:             row.id,
-    prNumber:       row.pr_number,
-    prTitle:        row.pr_title,
-    author:         row.author,
-    repo:           `${row.owner}/${row.repo}`,
-    status:         row.status,          // 'MERGED' | 'BLOCKED' | 'ESC_HUMAN'
-    summary:        row.summary,
-    attackType:     row.attack_type,
-    patternMatches: row.pattern_matches || [],
-    probe: {
-      attackSucceeded: row.attack_succeeded,
-      defenseHeld:     row.defense_held,
-      ...(row.probe_results || {}),
-    },
-    recommendations: row.recommendations || [],
-    scannedAt:       row.scanned_at,
+    id:        row.id,
+    author:    row.author,
+    prNumber:  row.pr_number,
+    prTitle:   row.pr_title,
+    repo:      row.repo,
+    status:    row.status,    // 'MERGED' | 'BLOCKED'
+    summary:   row.summary,
+    scannedAt: row.scanned_at,
+    // Provide empty defaults so SecurityDashboard doesn't crash
+    attackType:     null,
+    patternMatches: [],
+    probe:          { attackSucceeded: row.status === 'BLOCKED', defenseHeld: true },
   }));
 }
 
 // ── Contributor stats ─────────────────────────────────────────────────────────
 
-/**
- * Fetch per-author reputation data from the contributor_stats view.
- */
 export async function fetchContributorStats() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('contributor_stats')
-    .select('*');
+    .select('author, total, blocked, merged, block_pct, last_seen');
   if (error) throw error;
   return data || [];
 }
 
-export default supabase;
+export default supabaseClient;
+
