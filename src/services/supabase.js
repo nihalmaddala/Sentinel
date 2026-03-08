@@ -407,4 +407,12 @@ async function saveIssue(ctx, verdictId) {
   return data.issue_id;
 }
 
-module.exports = { saveVerdict, saveIssue };
+/**
+ * Returns the raw Supabase client.
+ * Used by pipeline stages that need direct table access (e.g. 4-trace, feedback loop).
+ */
+function getClient() {
+  return supabase;
+}
+
+module.exports = { saveVerdict, saveIssue, getClient };

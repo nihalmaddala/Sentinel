@@ -4,26 +4,30 @@ const neo4j = require('neo4j-driver');
 const config = require('../config');
 
 let driver = null;
+let _reachable = false; // set true only after verifyConnectivity succeeds
 
 if (config.neo4j.uri && config.neo4j.username && config.neo4j.password) {
   driver = neo4j.driver(
     config.neo4j.uri,
     neo4j.auth.basic(config.neo4j.username, config.neo4j.password),
     {
-      maxConnectionLifetime: 30 * 60 * 1000,     // 30 min — shorter than Aura's idle kill
+      maxConnectionLifetime: 30 * 60 * 1000,
       maxConnectionPoolSize: 10,
-      connectionAcquisitionTimeout: 30 * 1000,    // 30s to acquire a connection
-      connectionTimeout: 30 * 1000,               // 30s to establish
-      logging: neo4j.logging.console('warn'),
+      connectionAcquisitionTimeout: 10 * 1000,    // 10s — fail fast
+      connectionTimeout: 10 * 1000,               // 10s — fail fast
+      logging: neo4j.logging.console('error'),    // suppress routing-table WARNs
     }
   );
 
   // Verify connectivity at startup — non-fatal if it fails
   driver
     .verifyConnectivity()
-    .then(() => console.log('[neo4j] Connected to', config.neo4j.uri))
-    .catch((err) => {
-      console.warn('[neo4j] Connectivity check failed (trace stage will degrade):', err.message);
+    .then(() => {
+      _reachable = true;
+      console.log('[neo4j] Connected to', config.neo4j.uri);
+    })
+    .catch(() => {
+      console.warn('[neo4j] Instance unreachable — trace stage will use static fallback');
     });
 } else {
   console.warn('[neo4j] No credentials — trace stage will return placeholder data');
@@ -38,8 +42,8 @@ if (config.neo4j.uri && config.neo4j.username && config.neo4j.password) {
  * @returns {Promise<import('neo4j-driver').Record[]>}
  */
 async function runQuery(cypher, params = {}, retries = 2) {
-  if (!driver) {
-    console.warn('[neo4j] runQuery called but driver is null — returning []');
+  if (!driver || !_reachable) {
+    if (!_reachable && driver) console.warn('[neo4j] runQuery skipped — instance unreachable');
     return [];
   }
 
@@ -70,8 +74,7 @@ async function runQuery(cypher, params = {}, retries = 2) {
  * @returns {Promise<boolean>} true on success, false on failure
  */
 async function writeQuery(cypher, params = {}) {
-  if (!driver) {
-    console.warn('[neo4j] writeQuery called but driver is null — skipping');
+  if (!driver || !_reachable) {
     return false;
   }
 

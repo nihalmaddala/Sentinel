@@ -98,7 +98,7 @@ async function runPipeline(payload) {
       try {
         await feedbackLoop(ctx);
       } catch (feedbackErr) {
-        console.error('[pipeline] Neo4j feedback error (non-fatal):', feedbackErr.message);
+        console.error('[pipeline] Graph feedback error (non-fatal):', feedbackErr.message);
       }
     })();
 
