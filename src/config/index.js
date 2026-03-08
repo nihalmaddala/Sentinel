@@ -94,7 +94,7 @@ const config = Object.freeze({
     // OpenRouter connection
     openrouterBaseURL:  process.env.OPENROUTER_BASE_URL   || 'https://openrouter.ai/api/v1',
     openrouterReferer:  process.env.OPENROUTER_REFERER     || 'http://localhost',
-    openrouterAppName:  process.env.OPENROUTER_APP_NAME    || 'Argus',
+    openrouterAppName:  process.env.OPENROUTER_APP_NAME    || 'Sentinel',
 
     // Model IDs — defaults differ per provider so the env vars let you override
     // LLM_MODEL_MAIN     = full-power model for Stage 5 Pass 2 adjudication

@@ -1,8 +1,8 @@
-# Argus
+# Sentinel
 
 **Autonomous Multi-Regime Compliance Gatekeeper for AI Systems**
 
-Argus is a GitHub App that acts as an automated merge gate in the CI/CD pipeline. It intercepts Pull Requests, identifies jurisdiction-specific regulatory risks across multiple legal regimes (EU AI Act, CCPA 2026, GDPR, Illinois BIPA, and others), traces data flows through an infrastructure knowledge graph, and autonomously blocks or approves merges based on combined legal and architectural reasoning.
+Sentinel is a GitHub App that acts as an automated merge gate in the CI/CD pipeline. It intercepts Pull Requests, identifies jurisdiction-specific regulatory risks across multiple legal regimes (EU AI Act, CCPA 2026, GDPR, Illinois BIPA, and others), traces data flows through an infrastructure knowledge graph, and autonomously blocks or approves merges based on combined legal and architectural reasoning.
 
 ---
 
@@ -10,13 +10,13 @@ Argus is a GitHub App that acts as an automated merge gate in the CI/CD pipeline
 
 Engineers ship AI features in minutes. Regulatory law is a fragmented global patchwork. A pricing model that is perfectly legal in Texas may violate California's 2026 ADMT rules. A facial recognition feature compliant in the US may be banned under the EU AI Act. By the time a legal team reviews the feature, it is already deployed.
 
-Argus closes this gap by moving compliance left -- acting as a jurisdiction-aware guardian that evaluates every PR before it reaches production.
+Sentinel closes this gap by moving compliance left -- acting as a jurisdiction-aware guardian that evaluates every PR before it reaches production.
 
 ---
 
 ## How It Works
 
-Argus operates as a 6-stage autonomous state machine triggered by GitHub webhook events.
+Sentinel operates as a 6-stage autonomous state machine triggered by GitHub webhook events.
 
 ```
 PR Opened ──> [1] Intercept ──> [2] Introspect ──> [3] Research ──> [4] Trace ──> [5] Adjudicate ──> [6] Enforce
@@ -32,7 +32,7 @@ PR Opened ──> [1] Intercept ──> [2] Introspect ──> [3] Research ─�
 | 5 | **Adjudicate** | OpenAI (GPT-4o) | Synthesizes law + graph evidence + intent into a cited risk verdict |
 | 6 | **Enforce** | GitHub Checks API | Resolves the PR check as MERGE, BLOCK, or ESCALATE TO HUMAN |
 
-When a developer opens a PR, Argus immediately creates a **pending check** on the commit, visually locking the merge button. After the pipeline completes, the check resolves to green (compliant) or red (violation detected), with a detailed audit report posted as a PR comment.
+When a developer opens a PR, Sentinel immediately creates a **pending check** on the commit, visually locking the merge button. After the pipeline completes, the check resolves to green (compliant) or red (violation detected), with a detailed audit report posted as a PR comment.
 
 ---
 
@@ -78,7 +78,7 @@ When a developer opens a PR, Argus immediately creates a **pending check** on th
 
 ## Infrastructure Lineage Graph (Neo4j)
 
-The knowledge graph models a realistic enterprise microservice topology for a company called "Argus Demo" -- an AI-powered e-commerce and fintech platform. This is what differentiates Argus from tools that simply chat with regulatory PDFs: the graph provides **deterministic, verifiable evidence** of where data actually flows.
+The knowledge graph models a realistic enterprise microservice topology for a company called "Sentinel Demo" -- an AI-powered e-commerce and fintech platform. This is what differentiates Sentinel from tools that simply chat with regulatory PDFs: the graph provides **deterministic, verifiable evidence** of where data actually flows.
 
 ### Graph Structure
 
@@ -111,7 +111,7 @@ These are the hidden compliance risks the graph exposes:
 
 ### Example Trace Query
 
-When a PR mentions `DynamicPricing_v1`, Argus runs:
+When a PR mentions `DynamicPricing_v1`, Sentinel runs:
 
 ```cypher
 MATCH (m:Model {name: 'DynamicPricing_v1'})
@@ -121,9 +121,9 @@ WHERE p.type IN ['Biometric', 'PII', 'Financial']
 RETURN m, db, p
 ```
 
-Against the Argus Demo graph, this returns 11 lineage paths, revealing that the pricing model reads from UserVault (California) and writes to MarketingDB (unencrypted), touching Biometric, PII, Financial, and Behavioral data.
+Against the Sentinel Demo graph, this returns 11 lineage paths, revealing that the pricing model reads from UserVault (California) and writes to MarketingDB (unencrypted), touching Biometric, PII, Financial, and Behavioral data.
 
-**Important distinction:** The query logic is fully generic. The results are determined entirely by what is in the graph. The Argus Demo topology is a reference implementation for demonstration purposes. In production, a company seeds the graph with a map of their own services, models, databases, and data flows. Argus then traverses that company-specific graph at runtime. The system does not hardcode any company's infrastructure -- it reasons over whatever topology has been loaded into Neo4j.
+**Important distinction:** The query logic is fully generic. The results are determined entirely by what is in the graph. The Sentinel Demo topology is a reference implementation for demonstration purposes. In production, a company seeds the graph with a map of their own services, models, databases, and data flows. Sentinel then traverses that company-specific graph at runtime. The system does not hardcode any company's infrastructure -- it reasons over whatever topology has been loaded into Neo4j.
 
 ---
 
@@ -235,7 +235,7 @@ NEO4J_PASSWORD=<your-neo4j-password>
 npm run seed
 ```
 
-This populates the graph with 34 nodes and 48 relationships representing the Argus Demo enterprise infrastructure.
+This populates the graph with 34 nodes and 48 relationships representing the Sentinel Demo enterprise infrastructure.
 
 ### Start the Server
 
@@ -253,12 +253,12 @@ npm run dev
 
 ### Automated (GitHub Webhook)
 
-1. Install the Argus GitHub App on a repository.
+1. Install the Sentinel GitHub App on a repository.
 2. Open a Pull Request. Include jurisdiction context in the PR body:
    ```
    Jurisdiction: California, EU
    ```
-3. Argus creates a pending check, runs the 6-stage pipeline, and resolves the check with a verdict.
+3. Sentinel creates a pending check, runs the 6-stage pipeline, and resolves the check with a verdict.
 
 ### Manual Testing
 
@@ -285,7 +285,7 @@ node test/test-neo4j-queries.js
 
 ## Graceful Degradation
 
-Argus is designed to function at varying capability levels depending on available credentials:
+Sentinel is designed to function at varying capability levels depending on available credentials:
 
 | Component | Available | Degraded |
 |-----------|-----------|----------|
@@ -359,7 +359,7 @@ https://<your-render-app>.onrender.com/api/webhook
 
 ## LLM Provider: OpenAI vs OpenRouter
 
-Argus ships with a unified LLM wrapper (`src/llm/client.js`) that supports both **OpenAI direct** and **OpenRouter** with a single env-var toggle.
+Sentinel ships with a unified LLM wrapper (`src/llm/client.js`) that supports both **OpenAI direct** and **OpenRouter** with a single env-var toggle.
 
 ### Default: OpenAI direct
 
@@ -392,7 +392,7 @@ LLM_MODEL_EXTRACTOR=qwen/qwen3-235b-a22b  # structured-extraction sub-agent (fut
 
 # OpenRouter branding headers (informational, sent to OpenRouter for attribution)
 OPENROUTER_REFERER=https://your-app.com
-OPENROUTER_APP_NAME=Argus
+OPENROUTER_APP_NAME=Sentinel
 
 # Dev only — log full prompts (NEVER enable in production)
 LLM_LOG_PROMPTS=false

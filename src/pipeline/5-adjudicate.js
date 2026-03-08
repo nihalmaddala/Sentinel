@@ -12,7 +12,7 @@ const config = require('../config');
 const { researchTargeted } = require('./3-research');
 
 // ── Pass 1: Analysis Draft prompt (gpt-4o-mini) ───────────────────────────────
-const ANALYSIS_DRAFT_PROMPT = `You are Argus — pre-analysis mode.
+const ANALYSIS_DRAFT_PROMPT = `You are Sentinel — pre-analysis mode.
 
 You receive a compliance brief and must identify what is known, what is uncertain, and what evidence would materially change the verdict.
 
@@ -33,7 +33,7 @@ RULES:
 - If the brief already contains AUTHORITATIVE citations that directly address the risk, set confidencePrior >= 0.7 and generate fewer queries`;
 
 // ── Pass 2: Final Compliance Report prompt (gpt-4o) ───────────────────────────
-const SYSTEM_PROMPT = `You are Argus — an autonomous compliance gatekeeper for GitHub pull requests.
+const SYSTEM_PROMPT = `You are Sentinel — an autonomous compliance gatekeeper for GitHub pull requests.
 
 <mission>
 Decide whether the PR should MERGE, BLOCK, or ESC_HUMAN based solely on the provided brief.
@@ -217,7 +217,7 @@ function buildSignalSummary(ctx) {
 
   const sensData = [
     ...(intent?.riskIndicators || []),
-    ...(feature?.argusManifest?.dataTags || []),
+    ...(feature?.sentinelManifest?.dataTags || []),
   ];
   const uniqueSens = [...new Set(sensData)];
 
@@ -294,7 +294,7 @@ function buildComplianceBrief(ctx) {
       featureLines.push(`Convention Warnings: ${f.conventionWarnings.join(' | ')}`);
     }
 
-    const m = f.argusManifest || {};
+    const m = f.sentinelManifest || {};
     if (m.domain)              featureLines.push(`Manifest Domain: ${m.domain}`);
     if (m.dataTags?.length)    featureLines.push(`Manifest Data Types: ${m.dataTags.join(', ')}`);
     if (m.userGeography?.length) featureLines.push(`Manifest User Geography: ${m.userGeography.join(', ')}`);
@@ -541,7 +541,7 @@ function applyOptionBOverride(ctx) {
     ...ctx.verdict,
     decision: 'ESC_HUMAN',
     reasoning: (ctx.verdict.reasoning || '') +
-      ' [Argus Policy Override] High-risk feature lacks sufficient context for automated compliance adjudication. Escalating to human review.',
+      ' [Sentinel Policy Override] High-risk feature lacks sufficient context for automated compliance adjudication. Escalating to human review.',
     recommendations: [
       'Add a detailed PR description with feature summary and data touched',
       'Include jurisdiction declarations (e.g. "Jurisdiction: California, EU")',

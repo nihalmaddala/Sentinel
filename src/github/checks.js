@@ -2,7 +2,7 @@
 
 const GITHUB_API = 'https://api.github.com';
 
-// Map Argus verdict decisions to GitHub check conclusions
+// Map verdict decisions to GitHub check conclusions
 const CONCLUSION_MAP = {
   MERGE: 'success',
   BLOCK: 'failure',
@@ -27,18 +27,17 @@ async function createPendingCheck(token, owner, repo, sha) {
         Authorization: `token ${token}`,
         Accept: 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'Argus-Compliance-Bot/1.0',
+        'User-Agent': 'Sentinel-Security-Bot/1.0',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        name: 'Argus Compliance Gate',
+        name: 'Sentinel Security Scan',
         head_sha: sha,
         status: 'in_progress',
         started_at: new Date().toISOString(),
         output: {
-          title: 'Argus is analysing this PR…',
-          summary:
-            'Autonomous compliance analysis in progress. Checking against EU AI Act, CCPA 2026, and infrastructure lineage graph.',
+          title: 'Sentinel is scanning for prompt injection…',
+          summary: 'Scanning diff for adversarial inputs. Running two-layer injection detection: pattern scan + live GPT-4o probe.',
         },
       }),
     }
@@ -66,18 +65,20 @@ async function createPendingCheck(token, owner, repo, sha) {
  */
 async function updateCheck(token, owner, repo, checkRunId, verdict, annotations = []) {
   const conclusion = CONCLUSION_MAP[verdict.decision] || 'neutral';
-  const confPct    = verdict.confidence !== undefined ? `${((verdict.confidence || 0) * 100).toFixed(0)}%` : 'N/A';
 
-  // Use the structured prSummary if available, fall back to legacy reasoning
-  const headline  = verdict.prSummary?.headline  || `Argus Verdict: ${verdict.decision}`;
-  const reasoning = verdict.prSummary?.reasoning || verdict.reasoning || '';
+  // If this block came from the injection scanner, surface that clearly
+  const fromScanner = verdict._source === 'injection-scanner';
+  const headline = fromScanner
+    ? `Sentinel Security Scan: Prompt injection ${verdict.decision}`
+    : `Sentinel Security Scan: ${verdict.decision}`;
+  const reasoning = fromScanner
+    ? verdict.reasoning
+    : (verdict.prSummary?.reasoning || verdict.reasoning || '');
 
   const summaryLines = [
     `**Decision: ${verdict.decision}**`,
-    `**Overall Risk:** ${((verdict.overallScore || 0) * 100).toFixed(0)}%  |  **Legal Risk:** ${((verdict.legalRisk || 0) * 100).toFixed(0)}%  |  **Architectural Exposure:** ${((verdict.architecturalExposure || 0) * 100).toFixed(0)}%  |  **Confidence:** ${confPct}`,
     '',
     reasoning,
-    verdict.confidenceRationale ? `_${verdict.confidenceRationale}_` : '',
   ].filter(Boolean);
 
   if (verdict.recommendations?.length > 0) {
@@ -93,7 +94,7 @@ async function updateCheck(token, owner, repo, checkRunId, verdict, annotations 
         Authorization: `token ${token}`,
         Accept: 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'Argus-Compliance-Bot/1.0',
+        'User-Agent': 'Sentinel-Security-Bot/1.0',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -136,7 +137,7 @@ async function getPRFiles(token, owner, repo, prNumber) {
           Authorization: `token ${token}`,
           Accept: 'application/vnd.github+json',
           'X-GitHub-Api-Version': '2022-11-28',
-          'User-Agent': 'Argus-Compliance-Bot/1.0',
+          'User-Agent': 'Sentinel-Security-Bot/1.0',
         },
       }
     );
@@ -300,7 +301,7 @@ async function buildAnnotations(token, owner, repo, prNumber, verdict, prFiles) 
       const startLine = lineMatch ? parseInt(lineMatch[1], 10) : firstChangedLine(prFile.patch);
 
       const citationText = v.regulation
-        ? `\n\nApplicable: ${v.regulation}`
+        ? `\n\nPattern: ${v.regulation}`
         : '';
 
       annotations.push({
@@ -308,8 +309,8 @@ async function buildAnnotations(token, owner, repo, prNumber, verdict, prFiles) 
         start_line:       startLine,
         end_line:         startLine,
         annotation_level: level,
-        title:            `Argus — ${v.severity || verdict.decision}: ${(v.issue || '').slice(0, 60)}`,
-        message:          `${v.issue || 'Compliance violation detected.'}${citationText}`,
+        title:            `Sentinel — ${v.severity || verdict.decision}: ${(v.issue || '').slice(0, 60)}`,
+        message:          `${v.issue || 'Injection pattern detected.'}${citationText}`,
       });
 
       if (annotations.length >= 50) break;
@@ -323,14 +324,9 @@ async function buildAnnotations(token, owner, repo, prNumber, verdict, prFiles) 
       .filter((j) => j.decision === 'BLOCK' || j.decision === 'ESC_HUMAN')
       .map((j) => `• [${j.jurisdiction}] ${j.decision}: ${j.reason}`);
 
-    const firstCit = verdict.citations?.[0];
-    const citText  = firstCit
-      ? `\n\nCitation: ${typeof firstCit === 'string' ? firstCit.slice(0, 200) : (firstCit.law || '') + (firstCit.excerpt ? ` — "${firstCit.excerpt}"` : '')}`
-      : '';
-
-    const baseMessage = jurisdictionLines.length > 0
-      ? jurisdictionLines.join('\n') + citText
-      : (verdict.prSummary?.reasoning || verdict.reasoning || 'Compliance violation detected.') + citText;
+    const baseMessage = verdict._source === 'injection-scanner'
+      ? (verdict.reasoning || 'Prompt injection detected.')
+      : (verdict.prSummary?.reasoning || verdict.reasoning || 'PR blocked by Sentinel.');
 
     for (const file of files.slice(0, 10)) {
       if (file.status === 'removed') continue;
@@ -339,7 +335,7 @@ async function buildAnnotations(token, owner, repo, prNumber, verdict, prFiles) 
         start_line:       firstChangedLine(file.patch),
         end_line:         firstChangedLine(file.patch),
         annotation_level: level,
-        title:            `Argus Compliance Gate — ${verdict.decision}`,
+        title:            `Sentinel Security Gate — ${verdict.decision}`,
         message:          baseMessage,
       });
     }

@@ -19,7 +19,7 @@ export default function IssuesList({ issues, onNavigate }) {
         <div className="space-y-6">
             <div>
                 <h2 className="text-2xl font-bold tracking-tight text-slate-900">Active Compliance Issues</h2>
-                <p className="text-sm text-slate-500 mt-1">Review and manage Argus compliance flags affecting pull requests.</p>
+                <p className="text-sm text-slate-500 mt-1">Review and manage Sentinel compliance flags affecting pull requests.</p>
             </div>
 
             <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">

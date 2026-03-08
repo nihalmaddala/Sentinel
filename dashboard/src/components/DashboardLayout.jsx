@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, AlertCircle, Shield } from 'lucide-react';
+import { LayoutDashboard, AlertCircle, Shield, ShieldAlert } from 'lucide-react';
 import OverviewDashboard from './OverviewDashboard';
 import IssuesList from './IssuesList';
 import IssueDetail from './IssueDetail';
+import SecurityDashboard from './SecurityDashboard';
 import { fetchOverview, fetchIssues, fetchIssue } from '../lib/supabase';
 
 export default function DashboardLayout() {
@@ -49,7 +50,10 @@ export default function DashboardLayout() {
             <aside className="w-56 bg-white border-r border-slate-200 flex flex-col">
                 <div className="p-5 border-b border-slate-200 flex items-center gap-2.5">
                     <Shield className="w-6 h-6 text-slate-800" />
-                    <h1 className="text-lg font-bold tracking-tight text-slate-900">Argus</h1>
+                    <div>
+                        <h1 className="text-lg font-bold tracking-tight text-slate-900">Sentinel</h1>
+                        <p className="text-xs text-slate-400">Security Agent</p>
+                    </div>
                 </div>
                 <nav className="flex-1 p-3 space-y-0.5">
                     <button
@@ -58,6 +62,16 @@ export default function DashboardLayout() {
                     >
                         <LayoutDashboard className="w-4 h-4" />
                         Overview
+                    </button>
+                    <button
+                        onClick={() => navigateTo('security')}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded transition-colors ${currentView === 'security' ? 'bg-red-50 text-red-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
+                    >
+                        <ShieldAlert className="w-4 h-4" />
+                        Injection Shield
+                        <span className="ml-auto bg-red-100 text-red-700 py-0.5 px-2 rounded text-xs font-semibold">
+                            3
+                        </span>
                     </button>
                     <button
                         onClick={() => navigateTo('issues')}
@@ -73,7 +87,7 @@ export default function DashboardLayout() {
                     </button>
                 </nav>
                 <div className="p-4 border-t border-slate-200">
-                    <p className="text-xs text-slate-400">Argus Compliance v1.0</p>
+                    <p className="text-xs text-slate-400">Sentinel Security v2.0</p>
                 </div>
             </aside>
 
@@ -87,6 +101,9 @@ export default function DashboardLayout() {
                         <>
                             {currentView === 'overview' && (
                                 <OverviewDashboard data={overview} onNavigate={navigateTo} />
+                            )}
+                            {currentView === 'security' && (
+                                <SecurityDashboard />
                             )}
                             {currentView === 'issues' && (
                                 <IssuesList issues={issues} onNavigate={navigateTo} />

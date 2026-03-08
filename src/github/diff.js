@@ -24,7 +24,7 @@ async function fetchPRDiff(token, owner, repo, prNumber) {
       Authorization: `token ${token}`,
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'Argus-Compliance-Bot/1.0',
+      'User-Agent': 'Sentinel-Security-Bot/1.0',
     },
   });
 

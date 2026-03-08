@@ -1,8 +1,8 @@
 'use strict';
 
-// Stage 4: Neo4j — query infra lineage graph for PII/biometric hot-spots
+// Stage 4: Trace — query infrastructure lineage graph in Supabase
 
-const { runQuery } = require('../services/neo4j');
+const { getClient } = require('../services/supabase');
 
 /**
  * Stage 4 — Trace
@@ -19,16 +19,13 @@ const { runQuery } = require('../services/neo4j');
 
 // Risk level scoring based on data sensitivity
 const RISK_SCORES = {
-  Biometric: 4,
-  PII:       3,
-  Behavioral:2,
-  Financial: 2,
-  Anonymized:0,
+  Biometric:  4,
+  PII:        3,
+  Behavioral: 2,
+  Financial:  2,
+  Anonymized: 0,
 };
 
-/**
- * Derive a risk level label from accumulated score.
- */
 function scoreToRiskLevel(score) {
   if (score >= 4) return 'Critical';
   if (score >= 3) return 'High';
@@ -38,218 +35,174 @@ function scoreToRiskLevel(score) {
 }
 
 /**
- * Run Neo4j queries for model names extracted from Stage 2 intent,
- * plus a task-type based query if no explicit model names were found.
+ * Fuzzy name match — returns true if either string contains the other (case-insensitive).
+ * Bridges "DynamicPricing" ↔ "DynamicPricing_v1".
+ */
+function fuzzyMatch(a, b) {
+  const al = a.toLowerCase();
+  const bl = b.toLowerCase();
+  return al.includes(bl) || bl.includes(al);
+}
+
+/**
+ * Stage 4 — Trace
+ * Queries the Supabase graph tables to determine whether the PR's models
+ * or task type are connected to sensitive data stores.
  *
- * @param {object} ctx  Pipeline context (needs ctx.intent, ctx.jurisdictions)
- * @returns {Promise<object>} ctx with ctx.graphEvidence populated
+ * Populates ctx.graphEvidence with:
+ *   pathsFound    — human-readable lineage path descriptions
+ *   sensitiveData — list of sensitive DataProperty types found
+ *   databases     — databases the model touches
+ *   riskLevel     — 'Critical' | 'High' | 'Medium' | 'Low' | 'None'
+ *   totalPaths    — count of lineage paths
  */
 async function trace(ctx) {
   console.log('[trace] Stage 4 — Trace starting…');
 
   const { intent, jurisdictions } = ctx;
-  const modelNames    = intent?.modelsMentioned      || [];
-  const dataSources   = intent?.dataSourcesMentioned || [];
-  const taskType      = intent?.taskType             || '';
-  const jurisRegions  = jurisdictions || [];
+  const modelNames   = intent?.modelsMentioned || [];
+  const taskType     = intent?.taskType        || '';
+  const jurisRegions = jurisdictions           || [];
 
-  // ── Query 1: By explicit model name (fuzzy — case-insensitive CONTAINS) ────
-  // A PR might mention "DynamicPricing" while Neo4j stores "DynamicPricing_v1".
-  // We normalise both sides to lowercase and use CONTAINS to bridge the gap.
-  const LINEAGE_BY_MODEL = `
-    MATCH (m:Model)
-    WHERE toLower(m.name) CONTAINS toLower($modelName)
-       OR toLower($modelName) CONTAINS toLower(m.name)
-    WITH m
-    MATCH (m)-[:WRITES_TO|READS_FROM*1..5]->(db:Database)-[:CONTAINS]->(p:DataProperty)
-    RETURN m.name AS model, db.name AS database, db.region AS region,
-           p.name AS dataProperty, p.type AS dataType, p.sensitivity AS sensitivity
-  `;
+  const supabase = getClient();
 
-  // ── Query 2: By task type (fuzzy — case-insensitive CONTAINS) ───────────────
-  const LINEAGE_BY_TASK = `
-    MATCH (m:Model)
-    WHERE toLower(m.task) CONTAINS toLower($task)
-       OR toLower($task) CONTAINS toLower(m.task)
-    WITH m
-    MATCH (m)-[:WRITES_TO|READS_FROM*1..5]->(db:Database)-[:CONTAINS]->(p:DataProperty)
-    RETURN m.name AS model, db.name AS database, db.region AS region,
-           p.name AS dataProperty, p.type AS dataType, p.sensitivity AS sensitivity
-  `;
-
-  // ── Query 3: Region-specific risk scan ──────────────────────────────────────
-  // Check if California or EU databases contain sensitive data
-  const REGION_RISK_QUERY = `
-    MATCH (db:Database {region: $region})-[:CONTAINS]->(p:DataProperty)
-    WHERE p.type IN ['Biometric', 'PII', 'Financial']
-    OPTIONAL MATCH (m:Model)-[:WRITES_TO|READS_FROM]->(db)
-    RETURN db.name AS database, db.region AS region,
-           p.name AS dataProperty, p.type AS dataType,
-           collect(DISTINCT m.name) AS connectedModels
-  `;
-
-  // Two separate record arrays — each query type returns different columns
-  const lineageRecords = [];  // from LINEAGE_BY_MODEL / LINEAGE_BY_TASK
-  const regionRecords  = [];  // from REGION_RISK_QUERY
-
-  // Run model-name queries
-  for (const modelName of modelNames) {
-    console.log(`[trace] Querying lineage for model (fuzzy): ${modelName}`);
-    const records = await runQuery(LINEAGE_BY_MODEL, { modelName });
-    lineageRecords.push(...records);
-  }
-
-  // Run task-type query if we have a task type
-  if (taskType && taskType !== 'Unknown') {
-    console.log(`[trace] Querying lineage by task type (fuzzy): ${taskType}`);
-    const records = await runQuery(LINEAGE_BY_TASK, { task: taskType });
-    lineageRecords.push(...records);
-  }
-
-  // Run region risk scan for jurisdiction-specific databases
-  const jurisdictionRegionMap = {
-    California: 'California',
-    EU:         'EU',
-    UK:         'UK',
-  };
-
-  for (const jurisdiction of jurisRegions) {
-    const region = jurisdictionRegionMap[jurisdiction];
-    if (region) {
-      console.log(`[trace] Scanning region-sensitive databases for: ${region}`);
-      const records = await runQuery(REGION_RISK_QUERY, { region });
-      regionRecords.push(...records);
-    }
-  }
-
-  const allEmpty = lineageRecords.length === 0 && regionRecords.length === 0;
-
-  // ── No Neo4j results — use static fallback based on known seed data ──────────
-  if (allEmpty) {
-    console.warn('[trace] Neo4j returned no records — using seed-data static fallback');
+  if (!supabase) {
+    console.warn('[trace] Supabase not configured — using static fallback');
     ctx.graphEvidence = buildStaticEvidence(modelNames, taskType, jurisRegions);
-
-    // Even in degraded mode, extract implied regions from the static paths and
-    // feed them back into ctx.jurisdictions for downstream stages.
-    const REGION_TO_JURISDICTION = {
-      'California': 'California', 'EU': 'EU', 'UK': 'UK',
-      'Illinois': 'Illinois', 'New York': 'New York', 'Texas': 'Texas',
-    };
-    const staticRegions = new Set();
-    for (const path of ctx.graphEvidence.pathsFound) {
-      const m = path.match(/\[([^\]]+)\]/);
-      if (m && REGION_TO_JURISDICTION[m[1]]) staticRegions.add(REGION_TO_JURISDICTION[m[1]]);
-    }
-    if (staticRegions.size > 0 && ctx.jurisdictions) {
-      const merged = [...new Set([
-        ...ctx.jurisdictions.filter((j) => j !== 'Global'),
-        ...[...staticRegions],
-      ])];
-      if (merged.length > 0) {
-        const added = merged.filter((j) => !ctx.jurisdictions.includes(j));
-        ctx.jurisdictions = merged;
-        if (added.length > 0) {
-          console.log(`[trace] Static evidence implicated jurisdictions: ${added.join(', ')}`);
-        }
-      }
-    }
-
     console.log('[trace] Stage 4 complete (degraded) ✓');
     return ctx;
   }
 
-  // ── Parse Neo4j records ──────────────────────────────────────────────────────
-  const pathsFound    = new Set();
-  const sensitiveData = new Set();
-  const databases     = new Set();
-  const graphRegions  = new Set();  // regions found in the actual graph data
-  let maxScore        = 0;
+  // ── Load full graph from Supabase (small enough to load once) ───────────────
+  const [
+    { data: allModels   },
+    { data: allDbs      },
+    { data: allProps    },
+    { data: modelEdges  },
+    { data: dbPropEdges },
+  ] = await Promise.all([
+    supabase.from('graph_models').select('*'),
+    supabase.from('graph_databases').select('*'),
+    supabase.from('graph_data_properties').select('*'),
+    supabase.from('graph_model_db_edges').select('*'),
+    supabase.from('graph_db_property_edges').select('*'),
+  ]);
 
-  // Region label → canonical jurisdiction name (mirrors Stage 1 keyword map)
-  const REGION_TO_JURISDICTION = {
-    'California': 'California',
-    'EU':         'EU',
-    'UK':         'UK',
-    'Illinois':   'Illinois',
-    'New York':   'New York',
-    'Texas':      'Texas',
-  };
+  const dbByName   = Object.fromEntries((allDbs   || []).map(d => [d.name, d]));
+  const propByName = Object.fromEntries((allProps || []).map(p => [p.name, p]));
 
-  // Parse lineage records (cols: model, database, region, dataProperty, dataType, sensitivity)
-  for (const record of lineageRecords) {
-    const model    = record.get('model')        || 'UnknownModel';
-    const db       = record.get('database')     || 'UnknownDB';
-    const region   = record.get('region')       || '';
-    const dataProp = record.get('dataProperty') || '';
-    const dataType = record.get('dataType')     || '';
+  // ── Resolve relevant model names (fuzzy) ────────────────────────────────────
+  const relevantModelNames = new Set();
 
-    databases.add(`${db} (${region})`);
-    if (region && REGION_TO_JURISDICTION[region]) graphRegions.add(REGION_TO_JURISDICTION[region]);
-
-    if (dataType && ['Biometric', 'PII', 'Behavioral', 'Financial'].includes(dataType)) {
-      sensitiveData.add(dataType);
-      const score = RISK_SCORES[dataType] || 1;
-      if (score > maxScore) maxScore = score;
-      pathsFound.add(`${model} → ${db} [${region}] → ${dataProp} (${dataType})`);
+  for (const name of modelNames) {
+    for (const m of (allModels || [])) {
+      if (fuzzyMatch(name, m.name)) relevantModelNames.add(m.name);
     }
   }
 
-  // Collect model names confirmed relevant to this PR (from lineage query results)
-  const relevantModels = new Set();
-  for (const record of lineageRecords) {
-    const model = record.get('model');
-    if (model) relevantModels.add(model);
-  }
-  for (const m of modelNames) {
-    relevantModels.add(m);
+  // Fall back to task-type match if no direct model hit
+  if (relevantModelNames.size === 0 && taskType && taskType !== 'Unknown') {
+    for (const m of (allModels || [])) {
+      if (m.task && fuzzyMatch(taskType, m.task)) relevantModelNames.add(m.name);
+    }
   }
 
-  // Parse region records (cols: database, region, dataProperty, dataType, connectedModels)
-  // Only include paths where a PR-relevant model actually connects to the database.
-  // This prevents showing unrelated models (FaceMatch_v2, CreditPredict_v1, etc.)
-  // that happen to share the same database but aren't part of this PR's data flow.
-  for (const record of regionRecords) {
-    const db              = record.get('database')        || 'UnknownDB';
-    const region          = record.get('region')          || '';
-    const dataProp        = record.get('dataProperty')    || '';
-    const dataType        = record.get('dataType')        || '';
-    const connectedModels = (record.get('connectedModels') || []).filter(Boolean);
+  if (relevantModelNames.size > 0) {
+    console.log(`[trace] Resolved models from graph: ${[...relevantModelNames].join(', ')}`);
+  }
 
-    // Skip databases where no model connects at all (avoids phantom "UnknownModel" paths)
-    if (connectedModels.length === 0) continue;
+  const pathsFound    = new Set();
+  const sensitiveData = new Set();
+  const databases     = new Set();
+  const graphRegions  = new Set();
+  let maxScore        = 0;
 
-    // Only include this path if one of the PR's relevant models touches this database
-    const relevant = connectedModels.filter((m) => relevantModels.has(m));
-    if (relevant.length === 0) continue;
+  const REGION_TO_JURISDICTION = {
+    California: 'California',
+    EU:         'EU',
+    UK:         'UK',
+    Illinois:   'Illinois',
+    'New York': 'New York',
+    Texas:      'Texas',
+  };
 
-    databases.add(`${db} (${region})`);
-    if (region && REGION_TO_JURISDICTION[region]) graphRegions.add(REGION_TO_JURISDICTION[region]);
+  // ── Query 1: Model → DB → DataProperty paths ────────────────────────────────
+  for (const modelName of relevantModelNames) {
+    const edges = (modelEdges || []).filter(e => e.model_name === modelName);
 
-    if (dataType && ['Biometric', 'PII', 'Behavioral', 'Financial'].includes(dataType)) {
-      sensitiveData.add(dataType);
-      const score = RISK_SCORES[dataType] || 1;
-      if (score > maxScore) maxScore = score;
-      const modelLabel = relevant.join(', ');
-      pathsFound.add(`${modelLabel} → ${db} [${region}] → ${dataProp} (${dataType})`);
+    for (const edge of edges) {
+      const db = dbByName[edge.db_name];
+      if (!db) continue;
+
+      const propEdges = (dbPropEdges || []).filter(e => e.db_name === db.name);
+      for (const pe of propEdges) {
+        const prop = propByName[pe.property_name];
+        if (!prop || !['Biometric', 'PII', 'Behavioral', 'Financial'].includes(prop.type)) continue;
+
+        sensitiveData.add(prop.type);
+        databases.add(`${db.name} (${db.region || 'unknown'})`);
+        if (db.region && REGION_TO_JURISDICTION[db.region]) {
+          graphRegions.add(REGION_TO_JURISDICTION[db.region]);
+        }
+        const score = RISK_SCORES[prop.type] || 1;
+        if (score > maxScore) maxScore = score;
+        pathsFound.add(`${modelName} → ${db.name} [${db.region || '?'}] → ${prop.name} (${prop.type})`);
+      }
+    }
+  }
+
+  // ── Query 2: Region scan for jurisdiction-specific databases ─────────────────
+  const jurisdictionRegionMap = { California: 'California', EU: 'EU', UK: 'UK' };
+  for (const jurisdiction of jurisRegions) {
+    const region = jurisdictionRegionMap[jurisdiction];
+    if (!region) continue;
+
+    console.log(`[trace] Scanning region-sensitive databases for: ${region}`);
+    const regionDbs = (allDbs || []).filter(d => d.region === region);
+
+    for (const db of regionDbs) {
+      const connectedModels = (modelEdges || [])
+        .filter(e => e.db_name === db.name)
+        .map(e => e.model_name);
+      const relevant = connectedModels.filter(m => relevantModelNames.has(m));
+      if (relevant.length === 0) continue;
+
+      const propEdges = (dbPropEdges || []).filter(e => e.db_name === db.name);
+      for (const pe of propEdges) {
+        const prop = propByName[pe.property_name];
+        if (!prop || !['Biometric', 'PII', 'Behavioral', 'Financial'].includes(prop.type)) continue;
+
+        sensitiveData.add(prop.type);
+        databases.add(`${db.name} (${db.region})`);
+        if (REGION_TO_JURISDICTION[db.region]) graphRegions.add(REGION_TO_JURISDICTION[db.region]);
+        const score = RISK_SCORES[prop.type] || 1;
+        if (score > maxScore) maxScore = score;
+        pathsFound.add(`${relevant.join(', ')} → ${db.name} [${db.region}] → ${prop.name} (${prop.type})`);
+      }
     }
   }
 
   // ── Feed graph-discovered regions back into ctx.jurisdictions ────────────────
-  // This is the autonomous path: if the graph proves UserVault [California] is
-  // touched, California is implicated regardless of what the PR body said.
   if (graphRegions.size > 0 && ctx.jurisdictions) {
     const before = [...ctx.jurisdictions];
     const merged = [...new Set([
-      ...ctx.jurisdictions.filter((j) => j !== 'Global'),
+      ...ctx.jurisdictions.filter(j => j !== 'Global'),
       ...[...graphRegions],
     ])];
     if (merged.length > 0) {
       ctx.jurisdictions = merged;
-      const added = merged.filter((j) => !before.includes(j));
+      const added = merged.filter(j => !before.includes(j));
       if (added.length > 0) {
         console.log(`[trace] Graph evidence implicated additional jurisdictions: ${added.join(', ')}`);
       }
     }
+  }
+
+  if (pathsFound.size === 0) {
+    console.warn('[trace] No graph paths found — using static fallback');
+    ctx.graphEvidence = buildStaticEvidence(modelNames, taskType, jurisRegions);
+    console.log('[trace] Stage 4 complete (degraded) ✓');
+    return ctx;
   }
 
   ctx.graphEvidence = {
@@ -260,183 +213,74 @@ async function trace(ctx) {
     totalPaths:    pathsFound.size,
   };
 
-  // Count paths that came from feedback-loop-discovered nodes (marked with discovered_from = 'pr')
-  const discoveredPaths = [...pathsFound].filter((p) => {
-    return lineageRecords.some((r) => {
-      const model = r.get('model') || '';
-      return p.startsWith(model) && !['DynamicPricing_v1','FaceMatch_v2','FraudSentinel_v3',
-        'CreditPredict_v1','SupportGPT_v1','AdScore_v2','Llama_3_Recommender'].includes(model);
-    });
-  });
-
-  console.log(`[trace] Paths found: ${pathsFound.size} | Risk level: ${ctx.graphEvidence.riskLevel}` +
-    (discoveredPaths.length > 0 ? ` | ${discoveredPaths.length} from feedback-discovered nodes` : ''));
+  console.log(`[trace] Paths found: ${pathsFound.size} | Risk level: ${ctx.graphEvidence.riskLevel}`);
   console.log('[trace] Stage 4 complete ✓');
   return ctx;
 }
 
-/**
- * Static fallback based on the known seed.cypher graph structure.
- * Used when Neo4j is unreachable or returns no records.
- * We reason from what we know — "DynamicPricing_v1 reads UserVault
- * which contains PII/Location in California."
- */
+// ── Static fallback ───────────────────────────────────────────────────────────
 function buildStaticEvidence(modelNames, taskType, jurisdictions) {
   const KNOWN_LINEAGE = {
-    DynamicPricing_v1: {
-      paths: [
-        'DynamicPricing_v1 → UserVault [California] → Location (PII)',
-        'DynamicPricing_v1 → UserVault [California] → Email (PII)',
-        'DynamicPricing_v1 → UserVault [California] → DeviceFingerprint (PII)',
-        'DynamicPricing_v1 → MarketingDB [US] → BrowsingHistory (Behavioral)',
-        'DynamicPricing_v1 → MarketingDB [US] → Email (PII)',
-        'DynamicPricing_v1 → MarketingDB [US] → Location (PII)',
-      ],
-      databases: ['UserVault (California)', 'MarketingDB (US)'],
-      note: 'MarketingDB has encryption: None — PII stored unencrypted',
-    },
-    FaceMatch_v2: {
-      paths: [
-        'FaceMatch_v2 → BiometricVault [Illinois] → FaceTemplate (Biometric)',
-        'FaceMatch_v2 → BiometricVault [Illinois] → Biometric_Hash (Biometric)',
-        'FaceMatch_v2 → UserVault [California] → Biometric_Hash (Biometric)',
-        'FaceMatch_v2 → UserVault [California] → Email (PII)',
-        'FaceMatch_v2 → UserVault [California] → DeviceFingerprint (PII)',
-      ],
-      databases: ['BiometricVault (Illinois)', 'UserVault (California)'],
-      note: 'Cross-jurisdiction biometric sync: Illinois BIPA → California CCPA',
-    },
-    FraudSentinel_v3: {
-      paths: [
-        'FraudSentinel_v3 → TransactionLedger [California] → CreditCardToken (Financial)',
-        'FraudSentinel_v3 → TransactionLedger [California] → PurchaseHistory (Behavioral)',
-        'FraudSentinel_v3 → TransactionLedger [California] → IPAddress (PII)',
-      ],
-      databases: ['TransactionLedger (California)'],
-      note: 'Auto-decline without human review — CCPA ADMT disclosure required',
-    },
-    CreditPredict_v1: {
-      paths: [
-        'CreditPredict_v1 → TransactionLedger [California] → CreditCardToken (Financial)',
-        'CreditPredict_v1 → TransactionLedger [California] → PurchaseHistory (Behavioral)',
-        'CreditPredict_v1 → UserVault [California] → CreditScore (Financial)',
-      ],
-      databases: ['TransactionLedger (California)', 'UserVault (California)'],
-      note: 'AI credit scoring on CA residents — ECOA/FCRA/CCPA triple exposure',
-    },
-    SupportGPT_v1: {
-      paths: [
-        'SupportGPT_v1 → UserVault [California] → Email (PII)',
-        'SupportGPT_v1 → UserVault [California] → Location (PII)',
-        'SupportGPT_v1 → TransactionLedger [California] → PurchaseHistory (Behavioral)',
-        'SupportGPT_v1 → TransactionLedger [California] → CreditCardToken (Financial)',
-      ],
-      databases: ['UserVault (California)', 'TransactionLedger (California)'],
-      note: 'LLM autonomous refund decisions — no human-in-the-loop',
-    },
-    AdScore_v2: {
-      paths: [
-        'AdScore_v2 → MarketingDB [US] → BrowsingHistory (Behavioral)',
-        'AdScore_v2 → AdDataWarehouse [US] → InterestProfile (Behavioral)',
-        'AdScore_v2 → AdDataWarehouse [US] → DeviceFingerprint (PII)',
-      ],
-      databases: ['MarketingDB (US)', 'AdDataWarehouse (US)'],
-      note: 'Behavioral profiling synced to ad exchange — ePrivacy/CCPA risk',
-    },
-    Llama_3_Recommender: {
-      paths: [
-        'Llama_3_Recommender → PublicAnalytics [EU] → AggregateStats (Anonymized)',
-      ],
-      databases: ['PublicAnalytics (EU)'],
-      note: 'Clean path — anonymized data only',
-    },
+    DynamicPricing_v1:    { paths: ['DynamicPricing_v1 → UserVault [California] → Location (PII)', 'DynamicPricing_v1 → UserVault [California] → Email (PII)', 'DynamicPricing_v1 → MarketingDB [US] → BrowsingHistory (Behavioral)'], databases: ['UserVault (California)', 'MarketingDB (US)'] },
+    FaceMatch_v2:         { paths: ['FaceMatch_v2 → BiometricVault [Illinois] → FaceTemplate (Biometric)', 'FaceMatch_v2 → BiometricVault [Illinois] → Biometric_Hash (Biometric)', 'FaceMatch_v2 → UserVault [California] → Email (PII)'], databases: ['BiometricVault (Illinois)', 'UserVault (California)'] },
+    FraudSentinel_v3:     { paths: ['FraudSentinel_v3 → TransactionLedger [California] → CreditCardToken (Financial)', 'FraudSentinel_v3 → TransactionLedger [California] → PurchaseHistory (Behavioral)'], databases: ['TransactionLedger (California)'] },
+    CreditPredict_v1:     { paths: ['CreditPredict_v1 → TransactionLedger [California] → CreditCardToken (Financial)', 'CreditPredict_v1 → UserVault [California] → CreditScore (Financial)'], databases: ['TransactionLedger (California)', 'UserVault (California)'] },
+    SupportGPT_v1:        { paths: ['SupportGPT_v1 → UserVault [California] → Email (PII)', 'SupportGPT_v1 → TransactionLedger [California] → PurchaseHistory (Behavioral)'], databases: ['UserVault (California)', 'TransactionLedger (California)'] },
+    AdScore_v2:           { paths: ['AdScore_v2 → MarketingDB [US] → BrowsingHistory (Behavioral)', 'AdScore_v2 → AdDataWarehouse [US] → InterestProfile (Behavioral)'], databases: ['MarketingDB (US)', 'AdDataWarehouse (US)'] },
+    Llama_3_Recommender:  { paths: ['Llama_3_Recommender → PublicAnalytics [EU] → AggregateStats (Anonymized)'], databases: ['PublicAnalytics (EU)'] },
+  };
+  const TASK_MAP = {
+    'Individualized Pricing':    'DynamicPricing_v1',
+    'Facial Recognition':        'FaceMatch_v2',
+    'Fraud Detection':           'FraudSentinel_v3',
+    'Credit Scoring':            'CreditPredict_v1',
+    'Automated Decision-Making': 'SupportGPT_v1',
+    'Behavioral Profiling':      'AdScore_v2',
+    'Content Recommendation':    'Llama_3_Recommender',
   };
 
-  const TASK_LINEAGE = {
-    'Individualized Pricing':   'DynamicPricing_v1',
-    'Facial Recognition':       'FaceMatch_v2',
-    'Fraud Detection':          'FraudSentinel_v3',
-    'Credit Scoring':           'CreditPredict_v1',
-    'Automated Decision-Making':'SupportGPT_v1',
-    'Behavioral Profiling':     'AdScore_v2',
-    'Content Recommendation':   'Llama_3_Recommender',
+  const allPaths = [];
+  const allDbs   = new Set();
+
+  const fuzzy = (name) => {
+    const l = name.toLowerCase();
+    for (const [key, val] of Object.entries(KNOWN_LINEAGE)) {
+      if (key.toLowerCase().includes(l) || l.includes(key.toLowerCase())) return val;
+    }
+    return null;
   };
 
-  let allPaths = [];
-  let allDatabases = new Set();
-
-  // Fuzzy key resolver: find KNOWN_LINEAGE entries where either side
-  // contains the other (case-insensitive). E.g. "DynamicPricing" matches
-  // "DynamicPricing_v1", and "dynamic_pricing_v1" matches "DynamicPricing_v1".
-  function fuzzyFindLineage(name) {
-    const lower = name.toLowerCase();
-    for (const [key, lineage] of Object.entries(KNOWN_LINEAGE)) {
-      const keyLower = key.toLowerCase();
-      if (keyLower.includes(lower) || lower.includes(keyLower)) {
-        return lineage;
-      }
-    }
-    return null;
-  }
-
-  for (const modelName of modelNames) {
-    const lineage = KNOWN_LINEAGE[modelName] || fuzzyFindLineage(modelName);
-    if (lineage) {
-      allPaths.push(...lineage.paths);
-      lineage.databases.forEach((d) => allDatabases.add(d));
-    }
-  }
-
-  // Fuzzy task type resolver for TASK_LINEAGE
-  function fuzzyFindTaskModel(task) {
-    const lower = task.toLowerCase();
-    for (const [key, model] of Object.entries(TASK_LINEAGE)) {
-      if (key.toLowerCase().includes(lower) || lower.includes(key.toLowerCase())) {
-        return model;
-      }
-    }
-    return null;
+  for (const n of modelNames) {
+    const lin = KNOWN_LINEAGE[n] || fuzzy(n);
+    if (lin) { allPaths.push(...lin.paths); lin.databases.forEach(d => allDbs.add(d)); }
   }
 
   if (allPaths.length === 0) {
-    const matchedModel = TASK_LINEAGE[taskType] || fuzzyFindTaskModel(taskType);
-    if (matchedModel) {
-      const lineage = KNOWN_LINEAGE[matchedModel];
-      if (lineage) {
-        allPaths = lineage.paths;
-        lineage.databases.forEach((d) => allDatabases.add(d));
-      }
+    const key = Object.keys(TASK_MAP).find(k =>
+      k.toLowerCase().includes((taskType || '').toLowerCase()) ||
+      (taskType || '').toLowerCase().includes(k.toLowerCase())
+    );
+    const m = key ? TASK_MAP[key] : null;
+    if (m && KNOWN_LINEAGE[m]) {
+      allPaths.push(...KNOWN_LINEAGE[m].paths);
+      KNOWN_LINEAGE[m].databases.forEach(d => allDbs.add(d));
     }
   }
 
   if (allPaths.length === 0) {
-    return {
-      pathsFound: [],
-      sensitiveData: [],
-      databases: [],
-      riskLevel: 'None',
-      totalPaths: 0,
-    };
+    return { pathsFound: [], sensitiveData: [], databases: [], riskLevel: 'None', totalPaths: 0 };
   }
 
-  const sensitiveTypes = [];
-  if (allPaths.some((p) => p.includes('Biometric')))  sensitiveTypes.push('Biometric');
-  if (allPaths.some((p) => p.includes('Financial')))  sensitiveTypes.push('Financial');
-  if (allPaths.some((p) => p.includes('PII')))        sensitiveTypes.push('PII');
-  if (allPaths.some((p) => p.includes('Behavioral'))) sensitiveTypes.push('Behavioral');
+  const types = [];
+  if (allPaths.some(p => p.includes('Biometric')))  types.push('Biometric');
+  if (allPaths.some(p => p.includes('Financial')))  types.push('Financial');
+  if (allPaths.some(p => p.includes('PII')))        types.push('PII');
+  if (allPaths.some(p => p.includes('Behavioral'))) types.push('Behavioral');
 
-  const maxScore = sensitiveTypes.includes('Biometric') ? 4
-    : sensitiveTypes.includes('Financial') ? 3
-    : sensitiveTypes.includes('PII') ? 3
-    : sensitiveTypes.includes('Behavioral') ? 2 : 0;
+  const score = types.includes('Biometric') ? 4 : types.includes('Financial') ? 3
+    : types.includes('PII') ? 3 : types.includes('Behavioral') ? 2 : 0;
 
-  return {
-    pathsFound: allPaths,
-    sensitiveData: sensitiveTypes,
-    databases: [...allDatabases],
-    riskLevel: scoreToRiskLevel(maxScore),
-    totalPaths: allPaths.length,
-  };
+  return { pathsFound: allPaths, sensitiveData: types, databases: [...allDbs], riskLevel: scoreToRiskLevel(score), totalPaths: allPaths.length };
 }
 
 module.exports = { trace };

@@ -285,7 +285,7 @@ function extractLineageHints(diff) {
  * @param {Array<{ filename?: string, patch?: string }>} files
  * @returns {{ domain?: string, dataTags?: string[], userGeography?: string[], environment?: string }}
  */
-function parseArgusManifests(files) {
+function parseSentinelManifests(files) {
   if (!Array.isArray(files)) return {};
   const result = {};
 
@@ -394,7 +394,7 @@ async function buildFeatureContext(ctx) {
     conventionWarnings: [],
     serviceDomains: [],
     lineageHints: { writes: [], reads: [], streams: [] },
-    argusManifest: {},
+    sentinelManifest: {},
     geoSignals: [],
     evidence: { branchName: false, commitMessages: false, docFiles: false, prSections: false },
     missingContext: true,
@@ -422,7 +422,7 @@ async function buildFeatureContext(ctx) {
     // New enrichment signals
     const serviceDomains  = classifyServiceDomains(files);
     const lineageHints    = extractLineageHints(pr.diff || null);
-    const argusManifest   = parseArgusManifests(files);
+    const sentinelManifest   = parseSentinelManifests(files);
     const geoSignals      = extractGeoSignals(pr.diff || null);
 
     const hasMeaningfulBody = (pr.description || '').trim().length >= MIN_MEANINGFUL_BODY_LENGTH;
@@ -434,7 +434,7 @@ async function buildFeatureContext(ctx) {
       serviceDomains.length > 0 ||
       lineageHints.writes.length > 0 ||
       lineageHints.reads.length > 0 ||
-      Object.keys(argusManifest).length > 0 ||
+      Object.keys(sentinelManifest).length > 0 ||
       geoSignals.length > 0;
 
     const signalCount = [
@@ -473,7 +473,7 @@ async function buildFeatureContext(ctx) {
       conventionWarnings,
       serviceDomains,
       lineageHints,
-      argusManifest,
+      sentinelManifest,
       geoSignals,
       evidence: {
         branchName: hasDescriptiveBranch,
@@ -501,8 +501,8 @@ async function buildFeatureContext(ctx) {
     if (lineageHints.streams.length > 0) {
       console.log(`[feature-context] Stream topics: ${lineageHints.streams.join(', ')}`);
     }
-    if (Object.keys(argusManifest).length > 0) {
-      console.log(`[feature-context] argus.yaml manifest: ${JSON.stringify(argusManifest)}`);
+    if (Object.keys(sentinelManifest).length > 0) {
+      console.log(`[feature-context] argus.yaml manifest: ${JSON.stringify(sentinelManifest)}`);
     }
     if (geoSignals.length > 0) {
       console.log(`[feature-context] Geography signals (${geoSignals.length}): ${geoSignals[0]}…`);

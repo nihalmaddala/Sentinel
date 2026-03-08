@@ -1,7 +1,7 @@
 {
   "action": "opened",
   "installation": {
-    "id": 12345678
+    "id": 114607448
   },
   "pull_request": {
     "id": 102,
@@ -9,17 +9,17 @@
     "title": "feat: Add biometric facial recognition login via FaceMatch_v2",
     "body": "## Summary\nReplaces password-based MFA with silent facial recognition on every login.\nUses the FaceMatch_v2 model, reading face templates from BiometricVault and writing match results to UserVault.\n\n## Changes\n- AuthGateway now invokes FaceMatch_v2 on each login request\n- Face templates stored in BiometricVault and matched against UserVault records\n- No opt-out mechanism implemented — biometric capture is mandatory for all users\n\n## Notes\nRolling out to all users in California, Illinois, and EU first.",
     "head": {
-      "sha": "de4db33fc4b1de4db33fc4b1de4db33fc4b1de4d"
+      "sha": "be6f1d0ebf12bbac3aeb37af3d65654ce99ec297"
     },
     "user": {
       "login": "dev-engineer"
     }
   },
   "repository": {
-    "name": "Argus-Test",
-    "full_name": "chanu1406/Argus-Test",
+    "name": "hackformerced-test",
+    "full_name": "nihalmaddala/hackformerced-test",
     "owner": {
-      "login": "chanu1406"
+      "login": "nihalmaddala"
     }
   }
 }

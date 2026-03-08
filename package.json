@@ -1,5 +1,5 @@
 {
-  "name": "argus",
+  "name": "sentinel",
   "version": "1.0.0",
   "description": "Autonomous Multi-Regime Compliance Gatekeeper for AI Systems",
   "main": "src/index.js",
@@ -9,6 +9,14 @@
     "dev:server": "node src/index.js",
     "seed": "node neo4j/seed.js",
     "test:webhook": "node test/test-webhook.js",
+    "test:injection": "node test/test-injection.js",
+    "test:injection:clean": "node test/test-injection.js --clean",
+    "demo": "node test/demo.js",
+    "demo:clean": "node test/demo.js --clean",
+    "demo:attack1": "node test/demo.js --attack 1",
+    "demo:attack2": "node test/demo.js --attack 2",
+    "demo:attack3": "node test/demo.js --attack 3",
+    "probe:stealth": "node test/probe-stealth.js",
     "llm:smoke": "node scripts/llmSmoke.js"
   },
   "dependencies": {

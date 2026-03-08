@@ -272,7 +272,7 @@ const VERDICT_WITH_VIOLATIONS = {
     const anns = await buildAnnotations('tok', 'owner', 'repo', 42, verdictAllUnknown, MOCK_FILES);
     // Path B kicks in — should annotate the non-removed files (faceLogin.js and dynamic.js)
     assert(anns.length === 2,                          'pathA→pathB fallthrough: 2 file annotations');
-    assert(anns[0].title.includes('Argus Compliance Gate'), 'pathA→pathB: generic Path B title');
+    assert(anns[0].title.includes('Sentinel Security Gate'), 'pathA→pathB: generic Path B title');
   }
 
   // ── Path B: no violations → generic fallback ──────────────────────────────
@@ -293,7 +293,7 @@ const VERDICT_WITH_VIOLATIONS = {
     assert(anns.length === 2,                          'pathB: 2 annotations (removed file skipped)');
     assert(anns[0].path === 'src/auth/faceLogin.js',  'pathB: first file annotated');
     assert(anns[0].start_line === 1,                  'pathB: starts at firstChangedLine');
-    assert(anns[0].title === 'Argus Compliance Gate — BLOCK', 'pathB: generic title');
+    assert(anns[0].title === 'Sentinel Security Gate — BLOCK', 'pathB: generic title');
     assert(anns[0].message.includes('California'),    'pathB: message has jurisdiction reason');
     assert(anns[0].message.includes('CCPA'),          'pathB: message includes citation');
   }
