@@ -5,8 +5,6 @@ const config = require('./config');
 
 // Initialise singletons at startup so connectivity issues surface early
 require('./llm/client');       // unified LLM wrapper (picks provider from config)
-require('./services/tavily');
-require('./services/neo4j');
 
 const app = express();
 
