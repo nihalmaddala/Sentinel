@@ -90,7 +90,7 @@ async function processPullRequest(payload) {
     let ctx;
 
     if (typeof runPipeline === 'function') {
-      // Real pipeline — runs stages 1-6
+      // Sentinel pipeline — Intercept → Injection Scan → Enforce
       ctx = await runPipeline(payload);
     } else {
       // Increment 2 stub: pipeline not yet implemented
