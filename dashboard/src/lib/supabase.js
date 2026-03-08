@@ -1,38 +1,51 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// ── Overview ──────────────────────────────────────────────────────────────────
+// If env vars are not set the dashboard falls back to demo data — no crash.
+const supabaseClient = (SUPABASE_URL && SUPABASE_ANON_KEY)
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      realtime: { params: { eventsPerSecond: 10 } },
+    })
+  : null;
 
-export async function fetchOverview() {
-  const { data, error } = await supabase.rpc('get_dashboard_overview');
+// ── Scans ─────────────────────────────────────────────────────────────────────
+
+export async function fetchScans() {
+  if (!supabaseClient) return [];
+  const { data, error } = await supabaseClient
+    .from('scans')
+    .select('id, author, pr_number, pr_title, repo, status, summary, scanned_at')
+    .order('scanned_at', { ascending: false });
   if (error) throw error;
-  return data;
+
+  return (data || []).map((row) => ({
+    id:        row.id,
+    author:    row.author,
+    prNumber:  row.pr_number,
+    prTitle:   row.pr_title,
+    repo:      row.repo,
+    status:    row.status,    // 'MERGED' | 'BLOCKED'
+    summary:   row.summary,
+    scannedAt: row.scanned_at,
+    // Provide empty defaults so SecurityDashboard doesn't crash
+    attackType:     null,
+    patternMatches: [],
+    probe:          { attackSucceeded: row.status === 'BLOCKED', defenseHeld: true },
+  }));
 }
 
-// ── Issues ────────────────────────────────────────────────────────────────────
+// ── Contributor stats ─────────────────────────────────────────────────────────
 
-export async function fetchIssues() {
-  const { data, error } = await supabase
-    .from('issues')
-    .select('issue_id, title, severity, regulation, status, repository, pr_number, created_at')
-    .neq('status', 'complete')
-    .order('created_at', { ascending: false });
+export async function fetchContributorStats() {
+  if (!supabaseClient) return [];
+  const { data, error } = await supabaseClient
+    .from('contributor_stats')
+    .select('author, total, blocked, merged, block_pct, last_seen');
   if (error) throw error;
   return data || [];
 }
 
-export async function fetchIssue(issueId) {
-  const { data, error } = await supabase
-    .from('issues')
-    .select('*')
-    .eq('issue_id', issueId)
-    .single();
-  if (error) throw error;
-  return data;
-}
+export default supabaseClient;
 
-export default supabase;
