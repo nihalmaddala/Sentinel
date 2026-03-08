@@ -41,18 +41,24 @@ async function runPipeline(payload) {
     // and live-probes GPT-4o to confirm if the attack would succeed.
     await scanForInjection(ctx);
 
-    // If injection is CRITICAL (defense bypassed), force-block immediately
-    if (ctx.injectionReport?.status === 'CRITICAL') {
-      console.log('[pipeline] 🚨 CRITICAL injection detected — forcing BLOCK verdict');
+    // If ANY injection detected — stop the pipeline immediately, don't run compliance stages
+    if (ctx.injectionReport?.status === 'BLOCKED' || ctx.injectionReport?.status === 'CRITICAL') {
+      const isCritical = ctx.injectionReport.status === 'CRITICAL';
+      console.log(`[pipeline] 🚨 Injection ${ctx.injectionReport.status} — halting pipeline, forcing BLOCK`);
       ctx.verdict = {
         decision:              'BLOCK',
         overallScore:          1.0,
-        legalRisk:             1.0,
-        architecturalExposure: 1.0,
+        legalRisk:             0,
+        architecturalExposure: 0,
         confidence:            1.0,
-        reasoning:             'SECURITY VIOLATION: Prompt injection attack detected and confirmed. This PR contains adversarial inputs designed to manipulate AI-based compliance analysis.',
+        reasoning:             isCritical
+          ? 'SECURITY VIOLATION: Prompt injection attack bypassed AI defenses. This PR must be blocked.'
+          : 'SECURITY VIOLATION: Prompt injection attack detected and neutralized. This PR is blocked.',
         citations:             [],
-        recommendations:       ['Remove all prompt injection payloads from code comments and strings.', 'Review the PR for malicious intent before re-submitting.'],
+        recommendations:       [
+          'Remove all prompt injection payloads from code comments, strings, and annotations.',
+          'Review the PR for malicious intent before re-submitting.',
+        ],
         jurisdictionBreakdown: [],
         _source:               'injection-scanner',
       };
